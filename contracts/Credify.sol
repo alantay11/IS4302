@@ -2,38 +2,123 @@
 pragma solidity ^0.8.0;
 
 contract Credify {
-    enum institutionType {
+    enum InstitutionType {
         company,
         university
     }
-    enum institutionStatus {
+    enum InstitutionStatus {
         reputable,
         unreputable,
         eligibleToBeAudited,
         unaudited
     }
 
-    struct auditDecision {
+    struct Credential {
+        uint256 institutionId;
+        string recipient;
+        string credentialName;
+        string description; // Brief description of the credential
+        string url; // Link to detailed information stored off-chain
+        string ipfsHash; // IPFS hash of the credential for verification with url contents
+        uint256 issueDate;
+    }
+
+    struct AuditDecision {
         uint256 stakeAmount;
         bool voteReputable;
     }
 
-    struct institution {
+    struct Institution {
+        uint256 id;
         uint256 reputationPoints;
-        institutionType institutionType;
-        institutionStatus institutionStatus;
+        InstitutionType institutionType;
+        InstitutionStatus institutionStatus;
         uint256 lastAuditDate;
         mapping(address => uint256) endorsedStakes;
         mapping(address => uint256) receivedStakes;
-        mapping(address => auditDecision) auditingStakes;
+        mapping(address => AuditDecision) auditingStakes;
+        Credential[] credentialsIssued;
     }
 
-    event rolling(uint256 diceId);
-    event rolled(uint256 diceId, uint8 newNumber);
-    event luckytimesEvent(uint256 diceId);
+    uint256 public institutionCount;
+    mapping(uint256 => Institution) public institutions;
 
-    uint256 public numDices = 0;
-    mapping(address => institution) public institutions;
+    event InstitutionCreated(
+        uint256 indexed institutionId,
+        InstitutionType institutionType,
+        InstitutionStatus institutionStatus
+    );
+
+    event CredentialAdded(
+        uint256 indexed institutionId,
+        string recipient,
+        string credentialName,
+        string url,
+        string ipfsHash
+    );
+
+    // Function to create a new institution
+    function createInstitution(
+        InstitutionType institutionType,
+        InstitutionStatus institutionStatus
+    ) public returns (uint256) {
+        institutionCount++;
+        uint256 institutionId = institutionCount;
+
+        Institution storage newInstitution = institutions[institutionId];
+        newInstitution.id = institutionId;
+        newInstitution.institutionType = institutionType;
+        newInstitution.institutionStatus = institutionStatus;
+        newInstitution.reputationPoints = 0;
+
+        emit InstitutionCreated(
+            institutionId,
+            institutionType,
+            institutionStatus
+        );
+        return institutionId;
+    }
+
+    function addCredential(
+        uint256 institutionId,
+        string memory recipient,
+        string memory credentialName,
+        string memory description,
+        string memory url,
+        string memory ipfsHash
+    ) public {
+        require(
+            institutions[institutionId].institutionStatus ==
+                InstitutionStatus.reputable,
+            "Institution must be reputable to issue credentials"
+        );
+
+        Credential memory newCredential = Credential({
+            institutionId: institutionId,
+            recipient: recipient,
+            credentialName: credentialName,
+            description: description,
+            url: url,
+            ipfsHash: ipfsHash,
+            issueDate: block.timestamp
+        });
+
+        institutions[institutionId].credentialsIssued.push(newCredential);
+        emit CredentialAdded(
+            institutionId,
+            recipient,
+            credentialName,
+            url,
+            ipfsHash
+        ); // Updated event emission
+    }
+
+    // Function to get the credentials of an institution
+    function getCredentials(
+        uint256 institutionId
+    ) public view returns (Credential[] memory) {
+        return institutions[institutionId].credentialsIssued;
+    }
 
     //function to create a new dice, and add to 'dices' map. requires at least 0.01ETH to create
     function add(

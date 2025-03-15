@@ -2,6 +2,8 @@
 pragma solidity ^0.8.0;
 
 contract Credify {
+    mapping(address => uint256) public credifyTokenBalances;
+
     enum InstitutionType {
         company,
         university
@@ -56,6 +58,22 @@ contract Credify {
         string url,
         string ipfsHash
     );
+
+    event CredifyTokensAdded(address indexed to, uint256 amount);
+    
+    event CredifyTokensBurned(address indexed from, uint256 amount);
+
+    function addCredits(address to, uint256 amount) internal {
+        credifyTokenBalances[to] += amount;
+        emit CredifyTokensAdded(to, amount);
+    }
+
+    function burnCredits(address from, uint256 amount) internal {
+        require(from == msg.sender, "Not authorized to burn");
+        require(credifyTokenBalances[from] >= amount, "Insufficient credits");
+        credifyTokenBalances[from] -= amount;
+        emit CredifyTokensBurned(from, amount);
+    }
 
     // Function to create a new institution
     function createInstitution(

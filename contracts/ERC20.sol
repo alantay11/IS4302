@@ -19,8 +19,8 @@ contract ERC20 {
     mapping(address => uint256) private balances;
 
     // Token metadata
-    string public constant name = "DiceToken"; // Token name
-    string public constant symbol = "DT";      // Token symbol
+    string public constant name = "CredifyToken"; // Token name
+    string public constant symbol = "CT";      // Token symbol
     uint8 public constant decimals = 18;       // Token decimals
     uint256 private totalSupply_;              // Total supply of the token
 
@@ -29,6 +29,11 @@ contract ERC20 {
     event Approval(address indexed owner, address indexed spender, uint256 value);
     event Mint(address indexed to, uint256 amount);
     event MintFinished();
+
+
+    function transferOwnership(address newAddress) onlyOwner public {
+        owner = newAddress;
+    }
 
     /**
      * @dev Returns the total number of tokens in existence.

@@ -188,6 +188,8 @@ contract Credify {
         return institutions[institutionId].auditingStakes;
     }
 
+    // test
+
     // //function to create a new dice, and add to 'dices' map. requires at least 0.01ETH to create
     // function add(
     //     uint8 numberOfSides,

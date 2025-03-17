@@ -30,15 +30,24 @@ contract Credify {
         bool voteReputable;
     }
 
+    struct Stake {
+        uint256 amount;
+        uint256 institutionId;
+    }
+
     struct Institution {
         uint256 id;
         uint256 reputationPoints;
         InstitutionType institutionType;
         InstitutionStatus institutionStatus;
         uint256 lastAuditDate;
-        mapping(address => uint256) endorsedStakes;
-        mapping(address => uint256) receivedStakes;
-        mapping(address => AuditDecision) auditingStakes;
+        string name;
+        // in endorsedStakes, institutionId is the company that is being endorsed by the address (investor)
+        Stake[] endorsedStakes;
+        // in receivedStakes, institutionId is the company that is endorsing the address (investee)
+        Stake[] receivedStakes;
+        // there are frozen stakes, do we need to keep track of available balance??
+        AuditDecision[] auditingStakes;
         Credential[] credentialsIssued;
     }
 
@@ -60,7 +69,7 @@ contract Credify {
     );
 
     event CredifyTokensAdded(address indexed to, uint256 amount);
-    
+
     event CredifyTokensBurned(address indexed from, uint256 amount);
 
     function addCredits(address to, uint256 amount) internal {
@@ -138,33 +147,73 @@ contract Credify {
         return institutions[institutionId].credentialsIssued;
     }
 
-    //function to create a new dice, and add to 'dices' map. requires at least 0.01ETH to create
-    function add(
-        uint8 numberOfSides,
-        uint8 color
-    ) public payable returns (uint256) {
-        require(numberOfSides > 0);
-        require(
-            msg.value > 0.01 ether,
-            "at least 0.01 ETH is needed to spawn a new dice"
+    // Function to get all institutions
+    function getAllInstitutions() public view returns (Institution[] memory) {
+        Institution[] memory allInstitutions = new Institution[](
+            institutionCount
         );
-
-        //new dice object
-        // dice memory newDice = dice(
-        //     numberOfSides,
-        //     color,
-        //     (uint8)(block.timestamp % numberOfSides) + 1,  //non-secure random number
-        //     diceState.stationary,
-        //     msg.value,
-        //     msg.sender,  //owner
-        //     address(0),
-        //     0 // Ex1
-        // );
-
-        //     uint256 newDiceId = numDices++;
-        //     dices[newDiceId] = newDice; //commit to state variable
-        //     return newDiceId;   //return new diceId
+        for (uint256 i = 1; i <= institutionCount; i++) {
+            allInstitutions[i - 1] = institutions[i];
+        }
+        return allInstitutions;
     }
+
+    // Function to get an institution
+    function getInstitution(
+        uint256 institutionId
+    ) public view returns (Institution memory) {
+        return institutions[institutionId];
+    }
+
+    // this is to get the whole list,
+    // but consider whether to check the stake some company put on certain company company,
+    // this will need a seperate method, requiring both the company and the checked company id
+
+    function getStakesEndorsed(
+        uint256 investorId
+    ) public view returns (Stake[] memory) {
+        return institutions[investorId].endorsedStakes;
+    }
+
+    function getStakesReceived(
+        uint256 investeeId
+    ) public view returns (Stake[] memory) {
+        return institutions[investeeId].endorsedStakes;
+    }
+
+    // Function to view stakes put in the company for auditing
+    function getAuditingStakes(
+        uint256 institutionId
+    ) public view returns (AuditDecision[] memory) {
+        return institutions[institutionId].auditingStakes;
+    }
+
+    // //function to create a new dice, and add to 'dices' map. requires at least 0.01ETH to create
+    // function add(
+    //     uint8 numberOfSides,
+    //     uint8 color
+    // ) public payable returns (uint256) {
+    //     require(numberOfSides > 0);
+    //     require(
+    //         msg.value > 0.01 ether,
+    //         "at least 0.01 ETH is needed to spawn a new dice"
+    //     );
+
+    //new dice object
+    // dice memory newDice = dice(
+    //     numberOfSides,
+    //     color,
+    //     (uint8)(block.timestamp % numberOfSides) + 1,  //non-secure random number
+    //     diceState.stationary,
+    //     msg.value,
+    //     msg.sender,  //owner
+    //     address(0),
+    //     0 // Ex1
+    // );
+
+    //     uint256 newDiceId = numDices++;
+    //     dices[newDiceId] = newDice; //commit to state variable
+    //     return newDiceId;   //return new diceId
 
     // //modifier to ensure a function is callable only by its owner
     // modifier ownerOnly(uint256 diceId) {

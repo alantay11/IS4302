@@ -4,6 +4,27 @@ pragma solidity ^0.8.0;
 contract Credify {
     mapping(address => uint256) public credifyTokenBalances;
     address public credifyOwnerAddress;
+    address[] public verifiedUniAddresses;
+
+    function addVerifiedUniAddress(address uniAddress) public {
+        require(
+            msg.sender == credifyOwnerAddress,
+            "Only the owner can add verified university addresses"
+        );
+        verifiedUniAddresses.push(uniAddress);
+    }
+
+    function isVerifiedUniAddress(
+        address uniAddress
+    ) internal view returns (bool) {
+        for (uint256 i = 0; i < verifiedUniAddresses.length; i++) {
+            if (verifiedUniAddresses[i] == uniAddress) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // Constructor to set the owner address
     constructor() {
         credifyOwnerAddress = msg.sender;
@@ -90,24 +111,15 @@ contract Credify {
         emit CredifyTokensBurned(from, amount);
     }
 
-    // Function to create a new institution
-    function createInstitution(
-        InstitutionType institutionType,
+    function createCompany(
         InstitutionStatus institutionStatus
     ) public returns (uint256) {
-        if (institutionType == InstitutionType.university) {
-            require(
-                credifyOwnerAddress == msg.sender,
-                "A university cannot be created without administrator approval"
-            );
-        }
-
         institutionCount++;
         uint256 institutionId = institutionCount;
 
         Institution storage newInstitution = institutions[institutionId];
         newInstitution.id = institutionId;
-        newInstitution.institutionType = institutionType;
+        newInstitution.institutionType = InstitutionType.company;
         newInstitution.institutionStatus = institutionStatus;
         newInstitution.reputationPoints = 0;
         newInstitution.owner = msg.sender;
@@ -118,7 +130,37 @@ contract Credify {
 
         emit InstitutionCreated(
             institutionId,
-            institutionType,
+            InstitutionType.company,
+            institutionStatus
+        );
+        return institutionId;
+    }
+
+    function createUniversity(
+        InstitutionStatus institutionStatus
+    ) public returns (uint256) {
+        require(
+            isVerifiedUniAddress(msg.sender),
+            "Address not approved to create a university"
+        );
+
+        institutionCount++;
+        uint256 institutionId = institutionCount;
+
+        Institution storage newInstitution = institutions[institutionId];
+        newInstitution.id = institutionId;
+        newInstitution.institutionType = InstitutionType.university;
+        newInstitution.institutionStatus = institutionStatus;
+        newInstitution.reputationPoints = 0;
+        newInstitution.owner = msg.sender;
+        institutionIdByOwner[msg.sender] = institutionId;
+
+        // Set the initial amount of tokens for the institution
+        addCredits(msg.sender, 50);
+
+        emit InstitutionCreated(
+            institutionId,
+            InstitutionType.university,
             institutionStatus
         );
         return institutionId;
@@ -171,9 +213,9 @@ contract Credify {
     }
 
     modifier ownerOnly(uint256 institutionId) {
-    require(isOwner(institutionId), "Caller is not the owner");
-    _;
-}
+        require(isOwner(institutionId), "Caller is not the owner");
+        _;
+    }
 
     // Function to get all institutions
     function getAllInstitutions() public view returns (Institution[] memory) {
@@ -209,20 +251,23 @@ contract Credify {
     // but consider whether to check the stake some company put on certain company company,
     // this will need a seperate method, requiring both the company and the checked company id
 
-    function getStakesEndorsed( // get who the company has endorsed
+    function getStakesEndorsed(
+        // get who the company has endorsed
         uint256 investorId
     ) public view ownerOnly(investorId) returns (Stake[] memory) {
         return institutions[investorId].endorsedStakes;
     }
 
-    function getStakesReceived( // get who has endorsed the company
+    function getStakesReceived(
+        // get who has endorsed the company
         uint256 investeeId
     ) public view ownerOnly(investeeId) returns (Stake[] memory) {
         return institutions[investeeId].receivedStakes;
     }
 
     // Function to view stakes put in the company for auditing
-    function getAuditingStakes( // get who the company is auditing
+    function getAuditingStakes(
+        // get who the company is auditing
         uint256 institutionId
     ) public view ownerOnly(institutionId) returns (AuditDecision[] memory) {
         return institutions[institutionId].auditingStakes;

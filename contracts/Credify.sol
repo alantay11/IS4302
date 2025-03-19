@@ -6,6 +6,10 @@ contract Credify {
     address public credifyOwnerAddress;
     address[] public verifiedUniAddresses;
 
+    mapping(uint256 => uint256[]) public dailyEndorsementBuckets;
+    uint256 public lastUpdatedDay;
+    uint256 public bucketSize = 5;
+
     function addVerifiedUniAddress(address uniAddress) public {
         require(
             msg.sender == credifyOwnerAddress,
@@ -271,6 +275,86 @@ contract Credify {
         uint256 institutionId
     ) public view ownerOnly(institutionId) returns (AuditDecision[] memory) {
         return institutions[institutionId].auditingStakes;
+    }
+
+
+    // Function to update the daily endorsement buckets
+    function updateDailyEndorsementBuckets() public {
+        // Check if it's a new day
+        uint256 today = block.timestamp / 1 days; 
+        
+        if (today > lastUpdatedDay) {
+            lastUpdatedDay = today;
+            
+            // For each institution, create a new bucket
+            for (uint256 i = 1; i <= institutionCount; i++) {
+                // Only create buckets for eligible institutions
+                if (institutions[i].institutionStatus == InstitutionStatus.unaudited) {
+                    // Clear the previous bucket
+                    delete dailyEndorsementBuckets[i];
+                    
+                    // Create a pool of eligible institutions to endorse
+                    uint256[] memory eligibleInstitutions = new uint256[](institutionCount);
+                    uint256 eligibleCount = 0;
+                    
+                    for (uint256 j = 1; j <= institutionCount; j++) {
+                        // Don't include self or already endorsed institutions 
+                        // ASK: i dont know other way to exclude self, 
+                        // since doin this loop anyways, might as well just exclude alr endorsed institutions
+                        if (i != j && isEligibleForEndorsement(i, j)) {
+                            eligibleInstitutions[eligibleCount] = j;
+                            eligibleCount++;
+                        }
+                    }
+                    
+                    // Fill the bucket with random institutions
+                    uint256 actualBucketSize = bucketSize < eligibleCount ? bucketSize : eligibleCount;
+                    
+                    for (uint256 k = 0; k < actualBucketSize; k++) {
+                        uint256 randomIndex = generateRandomNumber(i * 1000 + k, eligibleCount - k);
+                        
+                        // Add the selected institution to the bucket
+                        dailyEndorsementBuckets[i].push(eligibleInstitutions[randomIndex]);
+                        
+                        // Swap the selected institution with the last one to avoid duplicates
+                        eligibleInstitutions[randomIndex] = eligibleInstitutions[eligibleCount - k - 1];
+                    }
+                }
+            }
+        }
+    }
+
+    // This function generates a random number using block variables and a nonce
+    private function generateRandomNumber(uint256 seed, uint256 max) internal view returns (uint256) {
+        // Combine multiple sources of entropy
+        // Not Truly Random due to the nature of Solidity, and Chainlink VRF need to pay 
+        uint256 randomNumber = uint256(keccak256(abi.encodePacked(
+            blockhash(block.number - 1),
+            block.timestamp,
+            block.difficulty,
+            seed
+        )));
+        
+        return randomNumber % max;
+    }
+
+
+    private function isEligibleForEndorsement(uint256 endorserId, uint256 endorseeId) internal view returns (bool) {
+        // Check if the endorser has already endorsed this institution
+        Stake[] memory endorsedStakes = institutions[endorserId].endorsedStakes;
+        
+        for (uint256 i = 0; i < endorsedStakes.length; i++) {
+            if (endorsedStakes[i].institutionId == endorseeId) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+    // Function to get today's endorsement bucket for an institution
+    function getTodayEndorsementBucket(uint256 institutionId) public view returns (uint256[] memory) {
+        return dailyEndorsementBuckets[institutionId];
     }
 
     // //function to create a new dice, and add to 'dices' map. requires at least 0.01ETH to create

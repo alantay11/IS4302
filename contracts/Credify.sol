@@ -3,7 +3,11 @@ pragma solidity ^0.8.0;
 
 contract Credify {
     mapping(address => uint256) public credifyTokenBalances;
-
+    address public credifyOwnerAddress;
+    // Constructor to set the owner address
+    constructor() {
+        credifyOwnerAddress = msg.sender;
+    }
     enum InstitutionType {
         company,
         university
@@ -49,10 +53,12 @@ contract Credify {
         // there are frozen stakes, do we need to keep track of available balance??
         AuditDecision[] auditingStakes;
         Credential[] credentialsIssued;
+        address owner;
     }
 
     uint256 public institutionCount;
     mapping(uint256 => Institution) public institutions;
+    mapping(address => uint256) public institutionIdByOwner;
 
     event InstitutionCreated(
         uint256 indexed institutionId,
@@ -89,6 +95,13 @@ contract Credify {
         InstitutionType institutionType,
         InstitutionStatus institutionStatus
     ) public returns (uint256) {
+        if (institutionType == InstitutionType.university) {
+            require(
+                credifyOwnerAddress == msg.sender,
+                "A university cannot be created without administrator approval"
+            );
+        }
+
         institutionCount++;
         uint256 institutionId = institutionCount;
 
@@ -97,6 +110,11 @@ contract Credify {
         newInstitution.institutionType = institutionType;
         newInstitution.institutionStatus = institutionStatus;
         newInstitution.reputationPoints = 0;
+        newInstitution.owner = msg.sender;
+        institutionIdByOwner[msg.sender] = institutionId;
+
+        // Set the initial amount of tokens for the institution
+        addCredits(msg.sender, 50);
 
         emit InstitutionCreated(
             institutionId,

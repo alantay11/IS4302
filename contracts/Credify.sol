@@ -165,13 +165,29 @@ contract Credify {
         return institutions[institutionId].credentialsIssued;
     }
 
+    // Helper function to check if the caller is the owner of the institution
+    function isOwner(uint256 institutionId) internal view returns (bool) {
+        return institutions[institutionId].owner == msg.sender;
+    }
+
+    modifier ownerOnly(uint256 institutionId) {
+    require(isOwner(institutionId), "Caller is not the owner");
+    _;
+}
+
     // Function to get all institutions
     function getAllInstitutions() public view returns (Institution[] memory) {
         Institution[] memory allInstitutions = new Institution[](
             institutionCount
         );
         for (uint256 i = 1; i <= institutionCount; i++) {
-            allInstitutions[i - 1] = institutions[i];
+            Institution memory institution = institutions[i];
+            if (!isOwner(i)) {
+                delete institution.endorsedStakes;
+                delete institution.receivedStakes;
+                delete institution.auditingStakes;
+            }
+            allInstitutions[i - 1] = institution;
         }
         return allInstitutions;
     }
@@ -180,29 +196,35 @@ contract Credify {
     function getInstitution(
         uint256 institutionId
     ) public view returns (Institution memory) {
-        return institutions[institutionId];
-    }
+        Institution memory institution = institutions[institutionId];
+        if (!isOwner(institutionId)) {
+            delete institution.endorsedStakes;
+            delete institution.receivedStakes;
+            delete institution.auditingStakes;
+        }
+        return institution;
+    } // if owner, get all, if not, only all details except stakes and auditing stakes
 
     // this is to get the whole list,
     // but consider whether to check the stake some company put on certain company company,
     // this will need a seperate method, requiring both the company and the checked company id
 
-    function getStakesEndorsed(
+    function getStakesEndorsed( // get who the company has endorsed
         uint256 investorId
-    ) public view returns (Stake[] memory) {
+    ) public view ownerOnly(investorId) returns (Stake[] memory) {
         return institutions[investorId].endorsedStakes;
     }
 
-    function getStakesReceived(
+    function getStakesReceived( // get who has endorsed the company
         uint256 investeeId
-    ) public view returns (Stake[] memory) {
-        return institutions[investeeId].endorsedStakes;
+    ) public view ownerOnly(investeeId) returns (Stake[] memory) {
+        return institutions[investeeId].receivedStakes;
     }
 
     // Function to view stakes put in the company for auditing
-    function getAuditingStakes(
+    function getAuditingStakes( // get who the company is auditing
         uint256 institutionId
-    ) public view returns (AuditDecision[] memory) {
+    ) public view ownerOnly(institutionId) returns (AuditDecision[] memory) {
         return institutions[institutionId].auditingStakes;
     }
 

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
+import "./Credential.sol";
+
 contract Credify {
     mapping(address => uint256) public credifyTokenBalances;
     address public credifyOwnerAddress;
@@ -44,15 +46,6 @@ contract Credify {
         unaudited
     }
 
-    struct Credential {
-        uint256 institutionId;
-        string recipient;
-        string credentialName;
-        string description; // Brief description of the credential
-        string url; // Link to detailed information stored off-chain
-        string ipfsHash; // IPFS hash of the credential for verification with url contents
-        uint256 issueDate;
-    }
 
     struct AuditDecision {
         uint256 stakeAmount;
@@ -77,7 +70,7 @@ contract Credify {
         Stake[] receivedStakes;
         // there are frozen stakes, do we need to keep track of available balance??
         AuditDecision[] auditingStakes;
-        Credential[] credentialsIssued;
+        address[] credentialsIssued;
         address owner;
     }
 
@@ -177,21 +170,23 @@ contract Credify {
         string memory description,
         string memory url,
         string memory ipfsHash
-    ) public {
+    ) ownerOnly(institutionId) public {
         require(
             institutions[institutionId].institutionStatus ==
                 InstitutionStatus.reputable,
             "Institution must be reputable to issue credentials"
         );
+        //TODO: Add requirement to check token balance
+        //TODO: Burn credits when credentials are created
 
-        Credential memory newCredential = Credential({
-            institutionId: institutionId,
+        address newCredential = new Credential({
+            owner: msg.sender,
+            credifyInstitutionId: institutionId,
             recipient: recipient,
             credentialName: credentialName,
             description: description,
             url: url,
-            ipfsHash: ipfsHash,
-            issueDate: block.timestamp
+            ipfsHash: ipfsHash
         });
 
         institutions[institutionId].credentialsIssued.push(newCredential);

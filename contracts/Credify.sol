@@ -45,11 +45,15 @@ contract Credify {
         eligibleToBeAudited,
         unaudited
     }
-
+    enum ProcessingStatus {
+        endorsee,
+        auditee 
+    }
 
     struct AuditDecision {
         uint256 stakeAmount;
         bool voteReputable;
+        uint256 institutionId;
     }
 
     struct Stake {
@@ -62,14 +66,14 @@ contract Credify {
         uint256 reputationPoints;
         InstitutionType institutionType;
         InstitutionStatus institutionStatus;
-        uint256 lastAuditDate;
+        uint256 lastAuditDate; // timestamp of the last audit
         string name;
         // in endorsedStakes, institutionId is the company that is being endorsed by the address (investor)
         Stake[] endorsedStakes;
         // in receivedStakes, institutionId is the company that is endorsing the address (investee)
         Stake[] receivedStakes;
-        // there are frozen stakes, do we need to keep track of available balance??
-        AuditDecision[] auditingStakes;
+        AuditDecision[] auditorStakes;
+        AuditDecision[] auditeeStakes;
         address[] credentialsIssued;
         address owner;
     }
@@ -77,6 +81,8 @@ contract Credify {
     uint256 public institutionCount;
     mapping(uint256 => Institution) public institutions;
     mapping(address => uint256) public institutionIdByOwner;
+    Institution[] public auditeePool;
+    Institution[] public auditorPool;
 
     event InstitutionCreated(
         uint256 indexed institutionId,
@@ -118,6 +124,7 @@ contract Credify {
         newInstitution.id = institutionId;
         newInstitution.institutionType = InstitutionType.company;
         newInstitution.institutionStatus = institutionStatus;
+        newInstitution.processingStatus = ProcessingStatus.endorsee;
         newInstitution.reputationPoints = 0;
         newInstitution.owner = msg.sender;
         institutionIdByOwner[msg.sender] = institutionId;
@@ -226,7 +233,8 @@ contract Credify {
             if (!isOwner(i)) {
                 delete institution.endorsedStakes;
                 delete institution.receivedStakes;
-                delete institution.auditingStakes;
+                delete institution.auditorStakes;
+                delete institution.auditeeStakes;
             }
             allInstitutions[i - 1] = institution;
         }
@@ -241,7 +249,8 @@ contract Credify {
         if (!isOwner(institutionId)) {
             delete institution.endorsedStakes;
             delete institution.receivedStakes;
-            delete institution.auditingStakes;
+            delete institution.auditorStakes;
+            delete institution.auditeeStakes;
         }
         return institution;
     } // if owner, get all, if not, only all details except stakes and auditing stakes
@@ -264,12 +273,20 @@ contract Credify {
         return institutions[investeeId].receivedStakes;
     }
 
-    // Function to view stakes put in the company for auditing
-    function getAuditingStakes(
-        // get who the company is auditing
+    // NEW: Function to view stakes auditor placed in others
+    function getAuditorStakes(
+        // get auditor institution identifer
         uint256 institutionId
     ) public view ownerOnly(institutionId) returns (AuditDecision[] memory) {
-        return institutions[institutionId].auditingStakes;
+        return institutions[institutionId].auditorStakes;
+    }
+
+    // NEW: Function to view stakes placed by others in auditee
+    function getAuditeeStakes(
+        // get auditee institution identifer
+        uint256 institutionId
+    ) public view ownerOnly(institutionId) returns (AuditDecision[] memory) {
+        return institutions[institutionId].auditeeStakes;
     }
 
     // Function to get the endorsement list for a specific institution
@@ -292,6 +309,7 @@ contract Credify {
         delete dailyEndorsementBucketsCache[institutionId];
 
         // Create a pool of eligible institutions to endorse
+        // CH: eligibleInstitutions needs to check if the institution has the unaudited status
         uint256[] memory eligibleInstitutions = new uint256[](institutionCount);
         uint256 eligibleCount = 0;
         
@@ -346,6 +364,246 @@ contract Credify {
         }
         return true;
     }
+
+    // New events for endorsement and audit processes
+    event EndorsementSubmitted(
+        uint256 indexed endorserId,
+        uint256 indexed endorseeId,
+        uint256 stakeAmount
+    );
+    event EndorsementProcessed(uint256 indexed endorseeId, bool success);
+    event AuditFinalized(
+        uint256 indexed auditorId,
+        uint256 indexed auditeeId,
+        bool auditPassed
+    );
+
+    // Function to submit endorsements
+    function submitEndorsements(uint256[] memory endorseeIds, uint256[] memory stakeAmounts) public {
+        require(endorseeIds.length == stakeAmounts.length, "Mismatched input lengths");
+
+        // CH: do we need to check if the endorseeId is inside the msg.sender's (endorser) basket?
+        uint256 endorserId = institutionIdByOwner[msg.sender];
+        require(endorserId > 0, "Endorser not registered");
+
+        for (uint256 i = 0; i < endorseeIds.length; i++) {
+            uint256 endorseeId = endorseeIds[i];
+            uint256 stakeAmount = stakeAmounts[i];
+
+            require(
+                credifyTokenBalances[msg.sender] >= stakeAmount,
+                "Insufficient CredifyToken balance"
+            );
+            require(
+                institutions[endorseeId].institutionStatus == InstitutionStatus.unaudited,
+                "Endorsee must be unaudited"
+            );
+
+            // Deduct tokens from endorser and update stakes
+            // CH: burnCredits is not really to burn from the system but just to deduct from the endorser
+            // CH: if team doesn't like burning, we can do "credifyTokenBalances[msg.sender] -= stakeAmount" instead
+            burnCredits(msg.sender, stakeAmount);
+            institutions[endorserId].endorsedStakes.push(Stake(stakeAmount, endorseeId));
+            institutions[endorseeId].receivedStakes.push(Stake(stakeAmount, endorserId));
+
+            emit EndorsementSubmitted(endorserId, endorseeId, stakeAmount);
+        }
+    }
+
+    // Function to process endorsements
+    function processEndorsements(uint256 endorseeId) public {
+        Institution storage endorsee = institutions[endorseeId];
+        // Endorsements are only needed for unaudited institutions
+        require(
+            endorsee.institutionStatus == InstitutionStatus.unaudited,
+            "Endorsee must be unaudited"
+        );
+
+        // Determine if the endorsee is eligible for auditing
+        uint256 totalReceivedStakes = calculateTotalReceivedStakes(endorseeId);
+        require(
+            totalReceivedStakes + credifyTokenBalances[endorsee.owner] >= 100,
+            "Sum of available token balance and received stakes must be at least 100"
+        );
+
+        // Move endorsee to auditee pool and process audit to determine success/failure of endorsement
+        endorsee.institutionStatus = InstitutionStatus.eligibleToBeAudited;
+        processAudit(endorseeId);
+        emit EndorsementProcessed(endorseeId, true);
+    }
+
+    // Helper function to calculate total received stakes for an institution
+    function calculateTotalReceivedStakes(uint256 institutionId) public view returns (uint256) {
+        Stake[] memory receivedStakes = institutions[institutionId].receivedStakes;
+        uint256 totalReceivedStakes = 0;
+
+        for (uint256 i = 0; i < receivedStakes.length; i++) {
+            totalReceivedStakes += receivedStakes[i].amount;
+        }
+
+        return totalReceivedStakes;
+    }
+
+    event AuditDecisionMade(
+        uint256 indexed auditorId,
+        uint256 indexed auditeeId,
+        uint256 stakeAmount,
+        bool voteReputable
+    );
+
+    event AuditProcessed(
+        uint256 indexed auditeeId,
+        bool auditPassed
+    );
+
+    function getInstitutionsForAudit() public {
+        delete auditeePool;
+        for (uint256 i = 1; i <= institutionCount; i++) {
+            Institution memory institution = institutions[i];
+            if ((institution.institutionStatus == InstitutionStatus.reputable) && (institution.lastAuditDate + 180 days > block.timestamp)) {
+                institutions[i].processingStatus = ProcessingStatus.auditee;
+                auditeePool.push(institution);
+            }
+            if (institution.institutionStatus == InstitutionStatus.eligibleToBeAudited) {
+                auditeePool.push(institution);
+            }
+        }
+        return auditeePool;
+    }
+
+    function getAuditorPool() public view returns (Institution[] memory) {
+        delete auditorPool;
+        for (uint256 i = 1; i <= institutionCount; i++) {
+            Institution memory institution = institutions[i];
+            if ((institution.institutionStatus == InstitutionStatus.reputable) && (institution.lastAuditDate + 180 days <= block.timestamp)) {
+                auditorPool.push(institution);
+            }
+        }
+        return auditorPool;
+    }
+
+    // Function for an auditor to make an audit decision
+    function makeAuditDecision(
+        uint256 auditorId,
+        uint256 auditeeId,
+        uint256 stakeAmount,
+        bool voteReputable
+    ) public {
+        Institution storage auditor = institutions[auditorId];
+        Institution storage auditee = institutions[auditeeId];
+        require(
+            credifyTokenBalances[auditor.owner] >= stakeAmount,
+            "Insufficient CredifyTokens for staking"
+        );
+        require(
+            auditee.institutionStatus == InstitutionStatus.eligibleToBeAudited || 
+                auditee.institutionStatus == InstitutionStatus.reputable,
+            "Auditee must be eligible to be audited or reputable"
+        );
+
+        // Deduct staked tokens from the auditor
+        burnCredits(auditor.owner, stakeAmount);
+
+        // Record the audit decision
+        institutions[auditorId].auditorStakes.push(AuditDecision(stakeAmount, voteReputable, auditeeId));
+        institutions[auditeeId].auditeeStakes.push(AuditDecision(stakeAmount, voteReputable, auditorId));
+
+        emit AuditDecisionMade(auditorId, auditeeId, stakeAmount, voteReputable);
+    }
+
+    // Function to process audits for an auditee
+    function processAudit(uint256 auditeeId) public {
+        Institution storage auditee = institutions[auditeeId];
+
+        uint256 totalVotes = 0;
+        uint256 reputableVotes = 0;
+        
+        // CH: all code below need rework because auditingStakes is for auditor not auditee
+        // Tally votes from all auditors
+        for (uint256 i = 0; i < auditee.auditeeStakes.length; i++) {
+            totalVotes++;
+            if (auditee.auditeeStakes[i].voteReputable) {
+                reputableVotes++;
+            }
+        }
+
+        uint256 auditorPoolSize = getAuditorPool().length;
+        // Ensure minimum number of votes is reached before processing
+        // CH: criteria to process audit to be confirmed by team
+        require(totalVotes >= 2 / 3 * auditorPoolSize, "Not enough audit decisions to process");
+
+        // Determine if the audit passed based on the majority vote
+        // CH: need to handle the case where reputableVotes and notReputableVotes is even
+        bool auditPassed = reputableVotes > totalVotes / 2;
+
+        if (auditPassed) {
+            // Reward all auditors with a 10% bonus on their stakes and mark the auditee as reputable
+            for (uint256 i = 0; i < auditee.auditeeStakes.length; i++) {
+                AuditDecision memory decision = auditee.auditeeStakes[i];
+                address auditor = institutions[decision.institutionId].owner;
+                addCredits(auditor, (decision.stakeAmount * 11) / 10);
+                for (uint256 j = 0; j < institutions[auditorId].auditorStakes.length; j++) {
+                    if (institutions[auditorId].auditorStakes[j].institutionId == auditeeId) {
+                        delete institutions[auditorId].auditorStakes[j];
+                        break;
+                    }
+                }
+            }
+            auditee.institutionStatus = InstitutionStatus.reputable;
+            emit AuditProcessed(auditeeId, true);
+            // Process endorsement for auditees who are endorsees
+            for (uint256 i = 0; i < auditee.receivedStakes.length; i++) {
+                Stake memory stake = auditee.receivedStakes[i];
+                address endorser = institutions[stake.institutionId].owner;
+                addCredits(endorser, (stake.amount * 11) / 10);
+                if (auditee.processingStatus == ProcessingStatus.endorsee) {
+                    addCredits(auditee.owner, stake.amount);
+                }
+                delete institutions[stake.institutionId].receivedStakes;
+                for (uint256 j = 0; j < institutions[stake.institutionId].auditorStakes.length; j++) {
+                    if (institutions[stake.institutionId].auditorStakes[j].institutionId == auditeeId) {
+                        delete institutions[stake.institutionId].auditorStakes[j];
+                        break;
+                    }
+                }
+            }
+        } else {
+            // Penalize all auditors with a 30% deduction on their stakes and mark the auditee as unreputable
+            for (uint256 i = 0; i < auditee.auditeeStakes.length; i++) {
+                AuditDecision memory decision = auditee.auditeeStakes[i];
+                address auditor = institutions[decision.institutionId].owner;
+                addCredits(auditor, (decision.stakeAmount * 7) / 10);
+                for (uint256 j = 0; j < institutions[auditorId].auditorStakes.length; j++) {
+                    if (institutions[auditorId].auditorStakes[j].institutionId == auditeeId) {
+                        delete institutions[auditorId].auditorStakes[j];
+                        break;
+                    }
+                }
+            }
+            auditee.institutionStatus = InstitutionStatus.unreputable;
+            emit AuditProcessed(auditeeId, false);
+            // Process endorsement for auditees who are endorsees
+            for (uint256 i = 0; i < auditee.receivedStakes.length; i++) {
+                Stake memory stake = auditee.receivedStakes[i];
+                address endorser = institutions[stake.institutionId].owner;
+                addCredits(endorser, (stake.amount * 7) / 10);
+                delete institutions[stake.institutionId].receivedStakes;
+                for (uint256 j = 0; j < institutions[stake.institutionId].auditorStakes.length; j++) {
+                    if (institutions[stake.institutionId].auditorStakes[j].institutionId == auditeeId) {
+                        delete institutions[stake.institutionId].auditorStakes[j];
+                        break;
+                    }
+                }
+            }
+        }
+
+        // CH: Update the last audit date for the auditee (so that reputable endorsee is not subjected to audit immediately after being endorsed)
+        auditee.lastAuditDate = block.timestamp;
+
+        // Clear auditing stakes after processing
+        delete auditee.auditeeStakes;
+    }
+}
 
 
     // //function to create a new dice, and add to 'dices' map. requires at least 0.01ETH to create
@@ -448,4 +706,3 @@ contract Credify {
     // function getOwner(uint256 diceId) public view validDiceId(diceId) returns (address) {
     //     return dices[diceId].owner;
     // }
-}

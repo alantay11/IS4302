@@ -492,13 +492,16 @@ contract Credify {
         Institution storage auditor = institutions[auditorId];
         Institution storage auditee = institutions[auditeeId];
         require(
-            credifyTokenBalances[auditor.owner] >= stakeAmount,
-            "Insufficient CredifyTokens for staking"
-        );
-        require(
             auditee.institutionStatus == InstitutionStatus.eligibleToBeAudited || 
                 auditee.institutionStatus == InstitutionStatus.reputable,
             "Auditee must be eligible to be audited or reputable"
+        );
+        require(
+            credifyTokenBalances[auditor.owner] >= stakeAmount,
+            "Insufficient CredifyTokens for staking"
+        );
+        require(stakeAmount >= 1 / 10 * credifyTokenBalances[auditor.owner],
+            "Stake amount must be at least 10% of the auditor's balance"
         );
 
         // Deduct staked tokens from the auditor
@@ -507,6 +510,10 @@ contract Credify {
         // Record the audit decision
         institutions[auditorId].auditorStakes.push(AuditDecision(stakeAmount, voteReputable, auditeeId));
         institutions[auditeeId].auditeeStakes.push(AuditDecision(stakeAmount, voteReputable, auditorId));
+
+        // CH: confirm with team if this is the way to help auditee reach audit threshold faster
+        // Token of appreciation given to auditors for making audit decision
+        institutions[auditorId].reputationPoints += 10;
 
         emit AuditDecisionMade(auditorId, auditeeId, stakeAmount, voteReputable);
     }
@@ -518,7 +525,6 @@ contract Credify {
         uint256 totalVotes = 0;
         uint256 reputableVotes = 0;
         
-        // CH: all code below need rework because auditingStakes is for auditor not auditee
         // Tally votes from all auditors
         for (uint256 i = 0; i < auditee.auditeeStakes.length; i++) {
             totalVotes++;

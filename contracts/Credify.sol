@@ -46,7 +46,7 @@ contract Credify {
         unaudited
     }
 
-    // CH: To facilitate difference in reward process for endorsee and auditee
+    // To facilitate difference in reward process for endorsee and auditee
     // only endorsee will receive tokens staked in them, auditee does not
     enum ProcessingStatus {
         endorsee,
@@ -380,7 +380,6 @@ contract Credify {
     function submitEndorsements(uint256[] memory endorseeIds, uint256[] memory stakeAmounts) public {
         require(endorseeIds.length == stakeAmounts.length, "Mismatched input lengths");
 
-        // CH: do we need to check if the endorseeId is inside the msg.sender's (endorser) basket?
         uint256 endorserId = institutionIdByOwner[msg.sender];
         require(endorserId > 0, "Endorser not registered");
 
@@ -398,8 +397,6 @@ contract Credify {
             );
 
             // Deduct tokens from endorser and update stakes
-            // CH: burnCredits is not really to burn from the system but just to deduct from the endorser
-            // CH: if team doesn't like burning, we can do "credifyTokenBalances[msg.sender] -= stakeAmount" instead
             burnCredits(msg.sender, stakeAmount);
             institutions[endorserId].endorsedStakes.push(Stake(stakeAmount, endorseeId));
             institutions[endorseeId].receivedStakes.push(Stake(stakeAmount, endorserId));
@@ -445,8 +442,7 @@ contract Credify {
     event AuditDecisionMade(
         uint256 indexed auditorId,
         uint256 indexed auditeeId,
-        uint256 stakeAmount,
-        bool voteReputable
+        uint256 stakeAmount
     );
 
     event AuditProcessed(
@@ -509,11 +505,15 @@ contract Credify {
         institutions[auditorId].auditorStakes.push(AuditDecision(stakeAmount, voteReputable, auditeeId));
         institutions[auditeeId].auditeeStakes.push(AuditDecision(stakeAmount, voteReputable, auditorId));
 
-        // CH: confirm with team if this is the way to help auditee reach audit threshold faster
         // Token of appreciation given to auditors for making audit decision
         institutions[auditorId].reputationPoints += 10;
 
-        emit AuditDecisionMade(auditorId, auditeeId, stakeAmount, voteReputable);
+        emit AuditDecisionMade(auditorId, auditeeId, stakeAmount);
+
+        // Process the audit if there are enough audit decisions
+        if (auditee.auditeeStakes.length >= 3) {
+            processAudit(auditeeId);
+        }
     }
 
     // Function to process audits for an auditee
@@ -532,13 +532,12 @@ contract Credify {
         }
 
         uint256 auditorPoolSize = getAuditorPool().length;
-        // Ensure minimum number of votes is reached before processing
-        // CH: criteria to process audit to be confirmed by team
-        require(totalVotes >= 2 / 3 * auditorPoolSize, "Not enough audit decisions to process");
+        // Can be scaled with platform size
+        require(totalVotes >= 3, "Not enough audit decisions to process");
 
         // Determine if the audit passed based on the majority vote
-        // CH: need to handle the case where reputableVotes and notReputableVotes is even
-        bool auditPassed = reputableVotes > totalVotes / 2;
+        // CH: change the condition 
+        bool auditPassed = reputableVotes > totalVotes;
 
         if (auditPassed) {
             // Reward all auditors with a 10% bonus on their stakes and mark the auditee as reputable
@@ -601,7 +600,7 @@ contract Credify {
             }
         }
 
-        // CH: Update the last audit date for the auditee (so that reputable endorsee is not subjected to audit immediately after being endorsed)
+        // Update the last audit date for the auditee (so that reputable endorsee is not subjected to audit immediately after being endorsed)
         auditee.lastAuditDate = block.timestamp;
 
         // Clear auditing stakes after processing

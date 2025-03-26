@@ -533,21 +533,20 @@ contract Credify {
 
         uint256 auditorPoolSize = getAuditorPool().length;
 
-        // Votes required can be scaled with platform size
-        require(totalVotes >= 3, "Not enough audit decisions to process");
-
         // Determine if the audit passed based on the majority vote
-        // CH: change the condition 
         bool auditPassed = reputableVotes > totalVotes;
 
         if (auditPassed) {
-            // CH: check the vote made by auditor and the vote made by auditee to reward properly
-
             // Reward all auditors with a 10% bonus on their stakes and mark the auditee as reputable
             for (uint256 i = 0; i < auditee.auditeeStakes.length; i++) {
                 AuditDecision memory decision = auditee.auditeeStakes[i];
                 address auditor = institutions[decision.institutionId].owner;
-                addCredits(auditor, (decision.stakeAmount * 11) / 10);
+                // Reward auditors who voted reputable with a 10% bonus on their stakes
+                if (decision.voteReputable) {
+                    addCredits(auditor, (decision.stakeAmount * 11) / 10);
+                } else {
+                    addCredits(auditor, (decision.stakeAmount * 7) / 10);
+                }
                 for (uint256 j = 0; j < institutions[auditor.id].auditorStakes.length; j++) {
                     if (institutions[auditor.id].auditorStakes[j].institutionId == auditeeId) {
                         delete institutions[auditor.id].auditorStakes[j];
@@ -574,11 +573,16 @@ contract Credify {
                 }
             }
         } else {
-            // Penalize all auditors with a 30% deduction on their stakes and mark the auditee as unreputable
+            // Audit failed, meaning the auditee is marked as unreputable
             for (uint256 i = 0; i < auditee.auditeeStakes.length; i++) {
                 AuditDecision memory decision = auditee.auditeeStakes[i];
                 address auditor = institutions[decision.institutionId].owner;
-                addCredits(auditor, (decision.stakeAmount * 7) / 10);
+                // Reward auditors who voted unreputable with a 10% bonus on their stakes
+                if (! decision.voteReputable) {
+                    addCredits(auditor, (decision.stakeAmount * 11) / 10);
+                } else {
+                    addCredits(auditor, (decision.stakeAmount * 7) / 10);
+                }
                 for (uint256 j = 0; j < institutions[auditor.id].auditorStakes.length; j++) {
                     if (institutions[auditor.id].auditorStakes[j].institutionId == auditeeId) {
                         delete institutions[auditor.id].auditorStakes[j];

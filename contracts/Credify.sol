@@ -312,7 +312,6 @@ contract Credify {
         delete dailyEndorsementBucketsCache[institutionId];
 
         // Create a pool of eligible institutions to endorse
-        // CH: eligibleInstitutions needs to check if the institution has the unaudited status
         uint256[] memory eligibleInstitutions = new uint256[](institutionCount);
         uint256 eligibleCount = 0;
         
@@ -375,11 +374,6 @@ contract Credify {
         uint256 stakeAmount
     );
     event EndorsementProcessed(uint256 indexed endorseeId, bool success);
-    event AuditFinalized(
-        uint256 indexed auditorId,
-        uint256 indexed auditeeId,
-        bool auditPassed
-    );
 
     // Function to submit endorsements
     function submitEndorsements(uint256[] memory endorseeIds, uint256[] memory stakeAmounts) public {

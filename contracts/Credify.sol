@@ -307,7 +307,7 @@ contract Credify {
         return dailyEndorsementBucketsCache[institutionId][today];
     }
 
-    private function generateEndorsementBucket(uint256 institutionId, uint256 today) internal {      
+    function generateEndorsementBucket(uint256 institutionId, uint256 today) internal {      
         // Clear the previous buckets for this institution
         delete dailyEndorsementBucketsCache[institutionId];
 
@@ -341,7 +341,7 @@ contract Credify {
     }
 
     // This function generates a random number using block variables and a nonce
-    private function generateRandomNumber(uint256 seed, uint256 max) internal view returns (uint256) {
+    function generateRandomNumber(uint256 seed, uint256 max) internal view returns (uint256) {
         // Combine multiple sources of entropy
         // Not Truly Random due to the nature of Solidity, and Chainlink VRF need to pay 
         uint256 randomNumber = uint256(keccak256(abi.encodePacked(
@@ -355,7 +355,7 @@ contract Credify {
     }
 
 
-    private function isEligibleForEndorsement(uint256 endorserId, uint256 endorseeId) internal view returns (bool) {
+    function isEligibleForEndorsement(uint256 endorserId, uint256 endorseeId) internal view returns (bool) {
         // Check if the endorser has already endorsed this institution
         Stake[] memory endorsedStakes = institutions[endorserId].endorsedStakes;
         

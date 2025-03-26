@@ -532,7 +532,8 @@ contract Credify {
         }
 
         uint256 auditorPoolSize = getAuditorPool().length;
-        // Can be scaled with platform size
+
+        // Votes required can be scaled with platform size
         require(totalVotes >= 3, "Not enough audit decisions to process");
 
         // Determine if the audit passed based on the majority vote
@@ -540,6 +541,8 @@ contract Credify {
         bool auditPassed = reputableVotes > totalVotes;
 
         if (auditPassed) {
+            // CH: check the vote made by auditor and the vote made by auditee to reward properly
+
             // Reward all auditors with a 10% bonus on their stakes and mark the auditee as reputable
             for (uint256 i = 0; i < auditee.auditeeStakes.length; i++) {
                 AuditDecision memory decision = auditee.auditeeStakes[i];

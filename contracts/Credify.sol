@@ -50,7 +50,8 @@ contract Credify {
     // only endorsee will receive tokens staked in them, auditee does not
     enum ProcessingStatus {
         endorsee,
-        auditee 
+        auditee,
+        others 
     }
 
     struct AuditDecision {
@@ -159,6 +160,7 @@ contract Credify {
         newInstitution.id = institutionId;
         newInstitution.institutionType = InstitutionType.university;
         newInstitution.institutionStatus = institutionStatus;
+        newInstitution.processingStatus = ProcessingStatus.others;
         newInstitution.reputationPoints = 0;
         newInstitution.owner = msg.sender;
         institutionIdByOwner[msg.sender] = institutionId;

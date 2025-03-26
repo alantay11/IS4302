@@ -45,6 +45,9 @@ contract Credify {
         eligibleToBeAudited,
         unaudited
     }
+
+    // CH: To facilitate difference in reward process for endorsee and auditee
+    // only endorsee will receive tokens staked in them, auditee does not
     enum ProcessingStatus {
         endorsee,
         auditee 

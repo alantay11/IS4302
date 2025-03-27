@@ -455,7 +455,7 @@ contract Credify {
         bool auditPassed
     );
 
-    function getInstitutionsForAudit() public {
+    function getInstitutionsForAudit() public view returns (Institution[] memory) {
         delete auditeePool;
         for (uint256 i = 1; i <= institutionCount; i++) {
             Institution memory institution = institutions[i];

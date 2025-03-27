@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.0; //hello
+pragma solidity ^0.8.0;
 
 import "./Credential.sol";
 
@@ -10,7 +10,8 @@ contract Credify {
     uint256 private constant CREDENTIAL_GENERATION_COST = 10;
 
     // Store endorsement buckets for each institution on each day
-    mapping(uint256 => mapping(uint256 => uint256[])) public dailyEndorsementBucketsCache;
+    mapping(uint256 => mapping(uint256 => uint256[]))
+        public dailyEndorsementBucketsCache;
     uint256 public bucketSize = 5;
 
     function addVerifiedUniAddress(address uniAddress) public {
@@ -21,9 +22,11 @@ contract Credify {
         verifiedUniAddresses.push(uniAddress);
     }
 
-    function isVerifiedUniAddress(
-        address uniAddress
-    ) internal view returns (bool) {
+    function isVerifiedUniAddress(address uniAddress)
+        internal
+        view
+        returns (bool)
+    {
         for (uint256 i = 0; i < verifiedUniAddresses.length; i++) {
             if (verifiedUniAddresses[i] == uniAddress) {
                 return true;
@@ -36,6 +39,7 @@ contract Credify {
     constructor() {
         credifyOwnerAddress = msg.sender;
     }
+
     enum InstitutionType {
         company,
         university
@@ -52,7 +56,7 @@ contract Credify {
     enum ProcessingStatus {
         endorsee,
         auditee,
-        others 
+        others
     }
 
     struct AuditDecision {
@@ -120,9 +124,10 @@ contract Credify {
         emit CredifyTokensBurned(from, amount);
     }
 
-    function createCompany(
-        InstitutionStatus institutionStatus
-    ) public returns (uint256) {
+    function createCompany(InstitutionStatus institutionStatus)
+        public
+        returns (uint256)
+    {
         institutionCount++;
         uint256 institutionId = institutionCount;
 
@@ -146,9 +151,10 @@ contract Credify {
         return institutionId;
     }
 
-    function createUniversity(
-        InstitutionStatus institutionStatus
-    ) public returns (uint256) {
+    function createUniversity(InstitutionStatus institutionStatus)
+        public
+        returns (uint256)
+    {
         require(
             isVerifiedUniAddress(msg.sender),
             "Address not approved to create a university"
@@ -184,41 +190,44 @@ contract Credify {
         string memory description,
         string memory url,
         string memory ipfsHash
-    ) ownerOnly(institutionId) public {
+    ) public ownerOnly(institutionId) {
         require(
             institutions[institutionId].institutionStatus ==
                 InstitutionStatus.reputable,
             "Institution must be reputable to issue credentials"
         );
-        //Burn credits when credentials are created. 
+        //Burn credits when credentials are created.
         burnCredits(msg.sender, CREDENTIAL_GENERATION_COST);
 
         Credential newCredential = new Credential(
-            msg.sender,          
-            institutionId,       
-            recipient,            
-            credentialName,       
-            description,          
-            url,                  
+            msg.sender,
+            institutionId,
+            recipient,
+            credentialName,
+            description,
+            url,
             ipfsHash
         );
 
         address newCredentialAddress = address(newCredential);
-        institutions[institutionId].credentialsIssued.push(newCredentialAddress);
+        institutions[institutionId].credentialsIssued.push(
+            newCredentialAddress
+        );
         emit CredentialAdded(
             institutionId,
             recipient,
             credentialName,
             url,
             ipfsHash
-        ); 
-        
+        );
     }
 
     // Function to get the credentials of an institution
-    function getCredentials(
-        uint256 institutionId
-    ) public view returns (address[] memory) {
+    function getCredentials(uint256 institutionId)
+        public
+        view
+        returns (address[] memory)
+    {
         return institutions[institutionId].credentialsIssued;
     }
 
@@ -250,10 +259,13 @@ contract Credify {
         return allInstitutions;
     }
 
+
     // Function to get an institution
-    function getInstitution(
-        uint256 institutionId
-    ) public view returns (Institution memory) {
+    function getInstitution(uint256 institutionId)
+        public
+        view
+        returns (Institution memory)
+    {
         Institution memory institution = institutions[institutionId];
         if (!isOwner(institutionId)) {
             delete institution.endorsedStakes;
@@ -299,8 +311,15 @@ contract Credify {
     }
 
     // Function to get the endorsement list for a specific institution
-    function getTodayEndorsementBucket(uint256 institutionId) public returns (uint256[] memory) {
-        require(institutions[institutionId].institutionStatus == InstitutionStatus.unaudited, "Not eligible for endorsement.");
+    function getTodayEndorsementBucket(uint256 institutionId)
+        public
+        returns (uint256[] memory)
+    {
+        require(
+            institutions[institutionId].institutionStatus ==
+                InstitutionStatus.unaudited,
+            "Not eligible for endorsement."
+        );
         uint256 today = block.timestamp / 1 days;
 
         // Check if the endorsement bucket for today already exists for this institution
@@ -308,63 +327,86 @@ contract Credify {
             // No bucket exists for today, so generate it
             generateEndorsementBucket(institutionId, today);
         }
-        
+
         // Return the endorsement bucket (cached)
         return dailyEndorsementBucketsCache[institutionId][today];
     }
 
-    function generateEndorsementBucket(uint256 institutionId, uint256 today) internal {      
+    function generateEndorsementBucket(uint256 institutionId, uint256 today)
+        internal
+    {
         // Clear the previous buckets for this institution
         delete dailyEndorsementBucketsCache[institutionId];
 
         // Create a pool of eligible institutions to endorse
         uint256[] memory eligibleInstitutions = new uint256[](institutionCount);
         uint256 eligibleCount = 0;
-        
+
         for (uint256 j = 1; j <= institutionCount; j++) {
-            // Don't include self or already endorsed institutions 
-            // ASK: i dont know other way to exclude self, 
+            // Don't include self or already endorsed institutions
+            // ASK: i dont know other way to exclude self,
             // since doin this loop anyways, might as well just exclude alr endorsed institutions
-            if (institutionId != j && isEligibleForEndorsement(institutionId, j)) {
+            if (
+                institutionId != j && isEligibleForEndorsement(institutionId, j)
+            ) {
                 eligibleInstitutions[eligibleCount] = j;
                 eligibleCount++;
             }
         }
 
         // Fill the bucket with random institutions
-        uint256 actualBucketSize = bucketSize < eligibleCount ? bucketSize : eligibleCount;
-        
+        uint256 actualBucketSize = bucketSize < eligibleCount
+            ? bucketSize
+            : eligibleCount;
 
         for (uint256 k = 0; k < actualBucketSize; k++) {
-            uint256 randomIndex = generateRandomNumber(institutionId * 1000 + k, eligibleCount - k);
-            
+            uint256 randomIndex = generateRandomNumber(
+                institutionId * 1000 + k,
+                eligibleCount - k
+            );
+
             // Add the selected institution to the bucket
-            dailyEndorsementBucketsCache[institutionId][today].push(eligibleInstitutions[randomIndex]);
-            
+            dailyEndorsementBucketsCache[institutionId][today].push(
+                eligibleInstitutions[randomIndex]
+            );
+
             // Swap the selected institution with the last one to avoid duplicates
-            eligibleInstitutions[randomIndex] = eligibleInstitutions[eligibleCount - k - 1];
+            eligibleInstitutions[randomIndex] = eligibleInstitutions[
+                eligibleCount - k - 1
+            ];
         }
     }
 
     // This function generates a random number using block variables and a nonce
-    function generateRandomNumber(uint256 seed, uint256 max) internal view returns (uint256) {
+    function generateRandomNumber(uint256 seed, uint256 max)
+        internal
+        view
+        returns (uint256)
+    {
         // Combine multiple sources of entropy
-        // Not Truly Random due to the nature of Solidity, and Chainlink VRF need to pay 
-        uint256 randomNumber = uint256(keccak256(abi.encodePacked(
-            blockhash(block.number - 1),
-            block.timestamp,
-            block.difficulty,
-            seed
-        )));
-        
+        // Not Truly Random due to the nature of Solidity, and Chainlink VRF need to pay
+        uint256 randomNumber = uint256(
+            keccak256(
+                abi.encodePacked(
+                    blockhash(block.number - 1),
+                    block.timestamp,
+                    block.difficulty,
+                    seed
+                )
+            )
+        );
+
         return randomNumber % max;
     }
 
-
-    function isEligibleForEndorsement(uint256 endorserId, uint256 endorseeId) internal view returns (bool) {
+    function isEligibleForEndorsement(uint256 endorserId, uint256 endorseeId)
+        internal
+        view
+        returns (bool)
+    {
         // Check if the endorser has already endorsed this institution
         Stake[] memory endorsedStakes = institutions[endorserId].endorsedStakes;
-        
+
         for (uint256 i = 0; i < endorsedStakes.length; i++) {
             if (endorsedStakes[i].institutionId == endorseeId) {
                 return false;
@@ -382,8 +424,14 @@ contract Credify {
     event EndorsementProcessed(uint256 indexed endorseeId, bool success);
 
     // Function to submit endorsements
-    function submitEndorsements(uint256[] memory endorseeIds, uint256[] memory stakeAmounts) public {
-        require(endorseeIds.length == stakeAmounts.length, "Mismatched input lengths");
+    function submitEndorsements(
+        uint256[] memory endorseeIds,
+        uint256[] memory stakeAmounts
+    ) public {
+        require(
+            endorseeIds.length == stakeAmounts.length,
+            "Mismatched input lengths"
+        );
 
         uint256 endorserId = institutionIdByOwner[msg.sender];
         require(endorserId > 0, "Endorser not registered");
@@ -397,14 +445,19 @@ contract Credify {
                 "Insufficient CredifyToken balance"
             );
             require(
-                institutions[endorseeId].institutionStatus == InstitutionStatus.unaudited,
+                institutions[endorseeId].institutionStatus ==
+                    InstitutionStatus.unaudited,
                 "Endorsee must be unaudited"
             );
 
             // Deduct tokens from endorser and update stakes
             burnCredits(msg.sender, stakeAmount);
-            institutions[endorserId].endorsedStakes.push(Stake(stakeAmount, endorseeId));
-            institutions[endorseeId].receivedStakes.push(Stake(stakeAmount, endorserId));
+            institutions[endorserId].endorsedStakes.push(
+                Stake(stakeAmount, endorseeId)
+            );
+            institutions[endorseeId].receivedStakes.push(
+                Stake(stakeAmount, endorserId)
+            );
 
             emit EndorsementSubmitted(endorserId, endorseeId, stakeAmount);
         }
@@ -433,8 +486,13 @@ contract Credify {
     }
 
     // Helper function to calculate total received stakes for an institution
-    function calculateTotalReceivedStakes(uint256 institutionId) public view returns (uint256) {
-        Stake[] memory receivedStakes = institutions[institutionId].receivedStakes;
+    function calculateTotalReceivedStakes(uint256 institutionId)
+        public
+        view
+        returns (uint256)
+    {
+        Stake[] memory receivedStakes = institutions[institutionId]
+            .receivedStakes;
         uint256 totalReceivedStakes = 0;
 
         for (uint256 i = 0; i < receivedStakes.length; i++) {
@@ -450,31 +508,39 @@ contract Credify {
         uint256 stakeAmount
     );
 
-    event AuditProcessed(
-        uint256 indexed auditeeId,
-        bool auditPassed
-    );
+    event AuditProcessed(uint256 indexed auditeeId, bool auditPassed);
 
-    function getInstitutionsForAudit() public view returns (Institution[] memory) {
+    function getInstitutionsForAudit() public returns (Institution[] memory) {
         delete auditeePool;
         for (uint256 i = 1; i <= institutionCount; i++) {
             Institution memory institution = institutions[i];
-            if ((institution.institutionStatus == InstitutionStatus.reputable) && (institution.lastAuditDate + 180 days > block.timestamp)) {
+            if (
+                (institution.institutionStatus ==
+                    InstitutionStatus.reputable) &&
+                (institution.lastAuditDate + 180 days > block.timestamp)
+            ) {
                 institutions[i].processingStatus = ProcessingStatus.auditee;
                 auditeePool.push(institution);
             }
-            if (institution.institutionStatus == InstitutionStatus.eligibleToBeAudited) {
+            if (
+                institution.institutionStatus ==
+                InstitutionStatus.eligibleToBeAudited
+            ) {
                 auditeePool.push(institution);
             }
         }
         return auditeePool;
     }
 
-    function getAuditorPool() public view returns (Institution[] memory) {
+    function getAuditorPool() public returns (Institution[] memory) {
         delete auditorPool;
         for (uint256 i = 1; i <= institutionCount; i++) {
             Institution memory institution = institutions[i];
-            if ((institution.institutionStatus == InstitutionStatus.reputable) && (institution.lastAuditDate + 180 days <= block.timestamp)) {
+            if (
+                (institution.institutionStatus ==
+                    InstitutionStatus.reputable) &&
+                (institution.lastAuditDate + 180 days <= block.timestamp)
+            ) {
                 auditorPool.push(institution);
             }
         }
@@ -491,7 +557,8 @@ contract Credify {
         Institution storage auditor = institutions[auditorId];
         Institution storage auditee = institutions[auditeeId];
         require(
-            auditee.institutionStatus == InstitutionStatus.eligibleToBeAudited || 
+            auditee.institutionStatus ==
+                InstitutionStatus.eligibleToBeAudited ||
                 auditee.institutionStatus == InstitutionStatus.reputable,
             "Auditee must be eligible to be audited or reputable"
         );
@@ -499,7 +566,8 @@ contract Credify {
             credifyTokenBalances[auditor.owner] >= stakeAmount,
             "Insufficient CredifyTokens for staking"
         );
-        require(stakeAmount >= 1 / 10 * credifyTokenBalances[auditor.owner],
+        require(
+            stakeAmount >= (credifyTokenBalances[auditor.owner] * 10) / 100,
             "Stake amount must be at least 10% of the auditor's balance"
         );
 
@@ -507,8 +575,12 @@ contract Credify {
         burnCredits(auditor.owner, stakeAmount);
 
         // Record the audit decision
-        institutions[auditorId].auditorStakes.push(AuditDecision(stakeAmount, voteReputable, auditeeId));
-        institutions[auditeeId].auditeeStakes.push(AuditDecision(stakeAmount, voteReputable, auditorId));
+        institutions[auditorId].auditorStakes.push(
+            AuditDecision(stakeAmount, voteReputable, auditeeId)
+        );
+        institutions[auditeeId].auditeeStakes.push(
+            AuditDecision(stakeAmount, voteReputable, auditorId)
+        );
 
         // Token of appreciation given to auditors for making audit decision
         institutions[auditorId].reputationPoints += 10;
@@ -527,7 +599,7 @@ contract Credify {
 
         uint256 totalVotes = 0;
         uint256 reputableVotes = 0;
-        
+
         // Tally votes from all auditors
         for (uint256 i = 0; i < auditee.auditeeStakes.length; i++) {
             totalVotes++;
@@ -546,15 +618,24 @@ contract Credify {
             for (uint256 i = 0; i < auditee.auditeeStakes.length; i++) {
                 AuditDecision memory decision = auditee.auditeeStakes[i];
                 address auditor = institutions[decision.institutionId].owner;
+                uint256 auditorId = institutions[decision.institutionId].id;
                 // Reward auditors who voted reputable with a 10% bonus on their stakes
                 if (decision.voteReputable) {
                     addCredits(auditor, (decision.stakeAmount * 11) / 10);
                 } else {
                     addCredits(auditor, (decision.stakeAmount * 7) / 10);
                 }
-                for (uint256 j = 0; j < institutions[auditor.id].auditorStakes.length; j++) {
-                    if (institutions[auditor.id].auditorStakes[j].institutionId == auditeeId) {
-                        delete institutions[auditor.id].auditorStakes[j];
+                for (
+                    uint256 j = 0;
+                    j < institutions[auditorId].auditorStakes.length;
+                    j++
+                ) {
+                    if (
+                        institutions[auditorId]
+                            .auditorStakes[j]
+                            .institutionId == auditeeId
+                    ) {
+                        delete institutions[auditorId].auditorStakes[j];
                         break;
                     }
                 }
@@ -570,9 +651,19 @@ contract Credify {
                     addCredits(auditee.owner, stake.amount);
                 }
                 delete institutions[stake.institutionId].receivedStakes;
-                for (uint256 j = 0; j < institutions[stake.institutionId].auditorStakes.length; j++) {
-                    if (institutions[stake.institutionId].auditorStakes[j].institutionId == auditeeId) {
-                        delete institutions[stake.institutionId].auditorStakes[j];
+                for (
+                    uint256 j = 0;
+                    j < institutions[stake.institutionId].auditorStakes.length;
+                    j++
+                ) {
+                    if (
+                        institutions[stake.institutionId]
+                            .auditorStakes[j]
+                            .institutionId == auditeeId
+                    ) {
+                        delete institutions[stake.institutionId].auditorStakes[
+                            j
+                        ];
                         break;
                     }
                 }
@@ -582,15 +673,24 @@ contract Credify {
             for (uint256 i = 0; i < auditee.auditeeStakes.length; i++) {
                 AuditDecision memory decision = auditee.auditeeStakes[i];
                 address auditor = institutions[decision.institutionId].owner;
+                uint256 auditorId = institutions[decision.institutionId].id;
                 // Reward auditors who voted unreputable with a 10% bonus on their stakes
-                if (! decision.voteReputable) {
+                if (!decision.voteReputable) {
                     addCredits(auditor, (decision.stakeAmount * 11) / 10);
                 } else {
                     addCredits(auditor, (decision.stakeAmount * 7) / 10);
                 }
-                for (uint256 j = 0; j < institutions[auditor.id].auditorStakes.length; j++) {
-                    if (institutions[auditor.id].auditorStakes[j].institutionId == auditeeId) {
-                        delete institutions[auditor.id].auditorStakes[j];
+                for (
+                    uint256 j = 0;
+                    j < institutions[auditorId].auditorStakes.length;
+                    j++
+                ) {
+                    if (
+                        institutions[auditorId]
+                            .auditorStakes[j]
+                            .institutionId == auditeeId
+                    ) {
+                        delete institutions[auditorId].auditorStakes[j];
                         break;
                     }
                 }
@@ -603,9 +703,19 @@ contract Credify {
                 address endorser = institutions[stake.institutionId].owner;
                 addCredits(endorser, (stake.amount * 7) / 10);
                 delete institutions[stake.institutionId].receivedStakes;
-                for (uint256 j = 0; j < institutions[stake.institutionId].auditorStakes.length; j++) {
-                    if (institutions[stake.institutionId].auditorStakes[j].institutionId == auditeeId) {
-                        delete institutions[stake.institutionId].auditorStakes[j];
+                for (
+                    uint256 j = 0;
+                    j < institutions[stake.institutionId].auditorStakes.length;
+                    j++
+                ) {
+                    if (
+                        institutions[stake.institutionId]
+                            .auditorStakes[j]
+                            .institutionId == auditeeId
+                    ) {
+                        delete institutions[stake.institutionId].auditorStakes[
+                            j
+                        ];
                         break;
                     }
                 }

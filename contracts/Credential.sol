@@ -2,14 +2,14 @@
 pragma solidity ^0.8.0;
 
 contract Credential {
-    address public owner;
-    uint256 public credifyInstitutionId;
-    string public recipient;
-    string public credentialName;
-    string public description; // Brief description of the credential
-    string public url; // Link to detailed information stored off-chain
-    string public ipfsHash; // IPFS hash of the credential for verification with URL contents
-    uint256 public issueDate;
+    address private owner;
+    uint256 private credifyInstitutionId;
+    string private recipient;
+    string private credentialName;
+    string private description; // Brief description of the credential
+    string private url; // Link to detailed information stored off-chain
+    string private ipfsHash; // IPFS hash of the credential for verification with URL contents
+    uint256 private issueDate;
 
     constructor(
         address _owner,

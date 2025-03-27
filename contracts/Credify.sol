@@ -7,6 +7,7 @@ contract Credify {
     mapping(address => uint256) public credifyTokenBalances;
     address public credifyOwnerAddress;
     address[] public verifiedUniAddresses;
+    uint256 private constant CREDENTIAL_GENERATION_COST = 10;
 
     // Store endorsement buckets for each institution on each day
     mapping(uint256 => mapping(uint256 => uint256[])) public dailyEndorsementBucketsCache;
@@ -107,12 +108,12 @@ contract Credify {
 
     event CredifyTokensBurned(address indexed from, uint256 amount);
 
-    function addCredits(address to, uint256 amount) internal {
+    function addCredits(address to, uint256 amount) private {
         credifyTokenBalances[to] += amount;
         emit CredifyTokensAdded(to, amount);
     }
 
-    function burnCredits(address from, uint256 amount) internal {
+    function burnCredits(address from, uint256 amount) private {
         require(from == msg.sender, "Not authorized to burn");
         require(credifyTokenBalances[from] >= amount, "Insufficient credits");
         credifyTokenBalances[from] -= amount;
@@ -189,33 +190,35 @@ contract Credify {
                 InstitutionStatus.reputable,
             "Institution must be reputable to issue credentials"
         );
-        //TODO: Add requirement to check token balance
-        //TODO: Burn credits when credentials are created
+        //Burn credits when credentials are created. 
+        burnCredits(msg.sender, CREDENTIAL_GENERATION_COST);
 
-        address newCredential = new Credential({
-            owner: msg.sender,
-            credifyInstitutionId: institutionId,
-            recipient: recipient,
-            credentialName: credentialName,
-            description: description,
-            url: url,
-            ipfsHash: ipfsHash
-        });
+        Credential newCredential = new Credential(
+            msg.sender,          
+            institutionId,       
+            recipient,            
+            credentialName,       
+            description,          
+            url,                  
+            ipfsHash
+        );
 
-        institutions[institutionId].credentialsIssued.push(newCredential);
+        address newCredentialAddress = address(newCredential);
+        institutions[institutionId].credentialsIssued.push(newCredentialAddress);
         emit CredentialAdded(
             institutionId,
             recipient,
             credentialName,
             url,
             ipfsHash
-        ); // Updated event emission
+        ); 
+        
     }
 
     // Function to get the credentials of an institution
     function getCredentials(
         uint256 institutionId
-    ) public view returns (Credential[] memory) {
+    ) public view returns (address[] memory) {
         return institutions[institutionId].credentialsIssued;
     }
 

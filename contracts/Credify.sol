@@ -8,10 +8,6 @@ contract Credify {
     address public credifyOwnerAddress;
     address[] public verifiedUniAddresses;
     uint256 private constant CREDENTIAL_GENERATION_COST = 10;
-
-    // Store endorsement buckets for each institution on each day
-    mapping(uint256 => mapping(uint256 => uint256[]))
-        public dailyEndorsementBucketsCache;
     uint256 public bucketSize = 5;
 
     function addVerifiedUniAddress(address uniAddress) public {
@@ -86,6 +82,8 @@ contract Credify {
         address[] credentialsIssued;
         address owner;
         ProcessingStatus processingStatus;
+        uint256[] todayEndorsementBucket;  // New field to store today’s bucket
+        uint256 lastUpdatedDate;           // New field to track last update
     }
 
     uint256 public institutionCount;
@@ -322,33 +320,26 @@ contract Credify {
         );
         uint256 today = block.timestamp / 1 days;
 
-        // Check if the endorsement bucket for today already exists for this institution
-        if (dailyEndorsementBucketsCache[institutionId][today].length == 0) {
-            // No bucket exists for today, so generate it
+        // If today's endorsement bucket is outdated, regenerate it
+        if (institutions[institutionId].lastUpdatedDate != today) {
             generateEndorsementBucket(institutionId, today);
         }
 
-        // Return the endorsement bucket (cached)
-        return dailyEndorsementBucketsCache[institutionId][today];
+        return institutions[institutionId].todayEndorsementBucket;
     }
 
     function generateEndorsementBucket(uint256 institutionId, uint256 today)
         internal
     {
-        // Clear the previous buckets for this institution
-        delete dailyEndorsementBucketsCache[institutionId];
+        Institution storage institution = institutions[institutionId];
+        delete institution.todayEndorsementBucket;
 
         // Create a pool of eligible institutions to endorse
         uint256[] memory eligibleInstitutions = new uint256[](institutionCount);
         uint256 eligibleCount = 0;
 
         for (uint256 j = 1; j <= institutionCount; j++) {
-            // Don't include self or already endorsed institutions
-            // ASK: i dont know other way to exclude self,
-            // since doin this loop anyways, might as well just exclude alr endorsed institutions
-            if (
-                institutionId != j && isEligibleForEndorsement(institutionId, j)
-            ) {
+            if (institutionId != j && statusIsUnaudited(institutionId) && notAlreadyEndorsed(institutionId, j)) {
                 eligibleInstitutions[eligibleCount] = j;
                 eligibleCount++;
             }
@@ -360,21 +351,14 @@ contract Credify {
             : eligibleCount;
 
         for (uint256 k = 0; k < actualBucketSize; k++) {
-            uint256 randomIndex = generateRandomNumber(
-                institutionId * 1000 + k,
-                eligibleCount - k
-            );
-
+            uint256 randomIndex = generateRandomNumber(institutionId * 1000 + k, eligibleCount - k);
             // Add the selected institution to the bucket
-            dailyEndorsementBucketsCache[institutionId][today].push(
-                eligibleInstitutions[randomIndex]
-            );
-
+            institution.todayEndorsementBucket.push(eligibleInstitutions[randomIndex]);
             // Swap the selected institution with the last one to avoid duplicates
-            eligibleInstitutions[randomIndex] = eligibleInstitutions[
-                eligibleCount - k - 1
-            ];
+            eligibleInstitutions[randomIndex] = eligibleInstitutions[eligibleCount - k - 1];
         }
+
+        institution.lastUpdatedDate = today;
     }
 
     // This function generates a random number using block variables and a nonce
@@ -390,7 +374,7 @@ contract Credify {
                 abi.encodePacked(
                     blockhash(block.number - 1),
                     block.timestamp,
-                    block.difficulty,
+                    block.prevrandao,
                     seed
                 )
             )
@@ -399,11 +383,12 @@ contract Credify {
         return randomNumber % max;
     }
 
-    function isEligibleForEndorsement(uint256 endorserId, uint256 endorseeId)
-        internal
-        view
-        returns (bool)
-    {
+    function statusIsUnaudited(uint256 institutionId) internal view returns (bool){
+        return institutions[institutionId].institutionStatus == InstitutionStatus.unaudited;
+    }
+    
+
+    function notAlreadyEndorsed(uint256 endorserId, uint256 endorseeId) internal view returns (bool) {
         // Check if the endorser has already endorsed this institution
         Stake[] memory endorsedStakes = institutions[endorserId].endorsedStakes;
 

@@ -18,11 +18,9 @@ contract Credify {
         verifiedUniAddresses.push(uniAddress);
     }
 
-    function isVerifiedUniAddress(address uniAddress)
-        internal
-        view
-        returns (bool)
-    {
+    function isVerifiedUniAddress(
+        address uniAddress
+    ) internal view returns (bool) {
         for (uint256 i = 0; i < verifiedUniAddresses.length; i++) {
             if (verifiedUniAddresses[i] == uniAddress) {
                 return true;
@@ -82,8 +80,8 @@ contract Credify {
         address[] credentialsIssued;
         address owner;
         ProcessingStatus processingStatus;
-        uint256[] todayEndorsementBucket;  // New field to store today’s bucket
-        uint256 lastUpdatedDate;           // New field to track last update
+        uint256[] todayEndorsementBucket; // New field to store today’s bucket
+        uint256 lastUpdatedDate; // New field to track last update
     }
 
     uint256 public institutionCount;
@@ -122,10 +120,9 @@ contract Credify {
         emit CredifyTokensBurned(from, amount);
     }
 
-    function createCompany(InstitutionStatus institutionStatus)
-        public
-        returns (uint256)
-    {
+    function createCompany(
+        InstitutionStatus institutionStatus
+    ) public returns (uint256) {
         institutionCount++;
         uint256 institutionId = institutionCount;
 
@@ -149,10 +146,9 @@ contract Credify {
         return institutionId;
     }
 
-    function createUniversity(InstitutionStatus institutionStatus)
-        public
-        returns (uint256)
-    {
+    function createUniversity(
+        InstitutionStatus institutionStatus
+    ) public returns (uint256) {
         require(
             isVerifiedUniAddress(msg.sender),
             "Address not approved to create a university"
@@ -221,11 +217,9 @@ contract Credify {
     }
 
     // Function to get the credentials of an institution
-    function getCredentials(uint256 institutionId)
-        public
-        view
-        returns (address[] memory)
-    {
+    function getCredentials(
+        uint256 institutionId
+    ) public view returns (address[] memory) {
         return institutions[institutionId].credentialsIssued;
     }
 
@@ -257,13 +251,10 @@ contract Credify {
         return allInstitutions;
     }
 
-
     // Function to get an institution
-    function getInstitution(uint256 institutionId)
-        public
-        view
-        returns (Institution memory)
-    {
+    function getInstitution(
+        uint256 institutionId
+    ) public view returns (Institution memory) {
         Institution memory institution = institutions[institutionId];
         if (!isOwner(institutionId)) {
             delete institution.endorsedStakes;
@@ -292,7 +283,7 @@ contract Credify {
         return institutions[investeeId].receivedStakes;
     }
 
-    // NEW: Function to view stakes auditor placed in others
+    // Function to view stakes auditor placed in others
     function getAuditorStakes(
         // get auditor institution identifer
         uint256 institutionId
@@ -300,7 +291,7 @@ contract Credify {
         return institutions[institutionId].auditorStakes;
     }
 
-    // NEW: Function to view stakes placed by others in auditee
+    // Function to view stakes placed by others in auditee
     function getAuditeeStakes(
         // get auditee institution identifer
         uint256 institutionId
@@ -309,14 +300,12 @@ contract Credify {
     }
 
     // Function to get the endorsement list for a specific institution
-    function getTodayEndorsementBucket()
-        public
-        returns (uint256[] memory)
-    {
-
+    function getTodayEndorsementBucket() public returns (uint256[] memory) {
         uint256 institutionId = institutionIdByOwner[msg.sender];
-        require(institutionId > 0, "Caller is not registered as an institution");
-    
+        require(
+            institutionId > 0,
+            "Caller is not registered as an institution"
+        );
         require(
             institutions[institutionId].institutionStatus ==
                 InstitutionStatus.unaudited,
@@ -332,9 +321,10 @@ contract Credify {
         return institutions[institutionId].todayEndorsementBucket;
     }
 
-    function generateEndorsementBucket(uint256 institutionId, uint256 today)
-        internal
-    {
+    function generateEndorsementBucket(
+        uint256 institutionId,
+        uint256 today
+    ) internal {
         Institution storage institution = institutions[institutionId];
         delete institution.todayEndorsementBucket;
 
@@ -355,22 +345,28 @@ contract Credify {
             : eligibleCount;
 
         for (uint256 k = 0; k < actualBucketSize; k++) {
-            uint256 randomIndex = generateRandomNumber(institutionId * 1000 + k, eligibleCount - k);
+            uint256 randomIndex = generateRandomNumber(
+                institutionId * 1000 + k,
+                eligibleCount - k
+            );
             // Add the selected institution to the bucket
-            institution.todayEndorsementBucket.push(eligibleInstitutions[randomIndex]);
+            institution.todayEndorsementBucket.push(
+                eligibleInstitutions[randomIndex]
+            );
             // Swap the selected institution with the last one to avoid duplicates
-            eligibleInstitutions[randomIndex] = eligibleInstitutions[eligibleCount - k - 1];
+            eligibleInstitutions[randomIndex] = eligibleInstitutions[
+                eligibleCount - k - 1
+            ];
         }
 
         institution.lastUpdatedDate = today;
     }
 
     // This function generates a random number using block variables and a nonce
-    function generateRandomNumber(uint256 seed, uint256 max)
-        internal
-        view
-        returns (uint256)
-    {
+    function generateRandomNumber(
+        uint256 seed,
+        uint256 max
+    ) internal view returns (uint256) {
         // Combine multiple sources of entropy
         // Not Truly Random due to the nature of Solidity, and Chainlink VRF need to pay
         uint256 randomNumber = uint256(
@@ -387,12 +383,18 @@ contract Credify {
         return randomNumber % max;
     }
 
-    function statusIsUnaudited(uint256 institutionId) internal view returns (bool){
-        return institutions[institutionId].institutionStatus == InstitutionStatus.unaudited;
+    function statusIsUnaudited(
+        uint256 institutionId
+    ) internal view returns (bool) {
+        return
+            institutions[institutionId].institutionStatus ==
+            InstitutionStatus.unaudited;
     }
-    
 
-    function notAlreadyEndorsed(uint256 endorserId, uint256 endorseeId) internal view returns (bool) {
+    function notAlreadyEndorsed(
+        uint256 endorserId,
+        uint256 endorseeId
+    ) internal view returns (bool) {
         // Check if the endorser has already endorsed this institution
         Stake[] memory endorsedStakes = institutions[endorserId].endorsedStakes;
 
@@ -417,6 +419,19 @@ contract Credify {
         uint256[] memory endorseeIds,
         uint256[] memory stakeAmounts
     ) public {
+        // [DONE] TO-DO: check whether the endorseeId is in the bucket
+        uint256[] memory endorserBucket = getTodayEndorsementBucket();
+        //  Ensure all endorseeIds are in the bucket
+        for (uint256 i = 0; i < endorseeIds.length; i++) {
+            bool found = false;
+            for (uint256 j = 0; j < endorserBucket.length; j++) {
+                if (endorseeIds[i] == endorserBucket[j]) {
+                    found = true;
+                    break;
+                }
+            }
+            require(found, "Endorsee not in today's endorsement bucket");
+        }
         require(
             endorseeIds.length == stakeAmounts.length,
             "Mismatched input lengths"
@@ -449,11 +464,22 @@ contract Credify {
             );
 
             emit EndorsementSubmitted(endorserId, endorseeId, stakeAmount);
+            uint256 totalReceivedStakes = calculateTotalReceivedStakes(
+                endorseeId
+            );
+            // [DONE] TO-DO: automatic endorsement eligibility check (previously is processEndorsement but really is just to check if met threshold only)
+            if (
+                totalReceivedStakes +
+                    credifyTokenBalances[institutions[endorseeId].owner] >=
+                100
+            ) {
+                processEndorsementEligibility(endorseeId);
+            }
         }
     }
 
     // Function to process endorsements
-    function processEndorsements(uint256 endorseeId) public {
+    function processEndorsementEligibility(uint256 endorseeId) public {
         Institution storage endorsee = institutions[endorseeId];
         // Endorsements are only needed for unaudited institutions
         require(
@@ -470,16 +496,14 @@ contract Credify {
 
         // Move endorsee to auditee pool and process audit to determine success/failure of endorsement
         endorsee.institutionStatus = InstitutionStatus.eligibleToBeAudited;
-        processAudit(endorseeId);
+        // [DONE] TO-DO: remove the processAudit
         emit EndorsementProcessed(endorseeId, true);
     }
 
     // Helper function to calculate total received stakes for an institution
-    function calculateTotalReceivedStakes(uint256 institutionId)
-        public
-        view
-        returns (uint256)
-    {
+    function calculateTotalReceivedStakes(
+        uint256 institutionId
+    ) public view returns (uint256) {
         Stake[] memory receivedStakes = institutions[institutionId]
             .receivedStakes;
         uint256 totalReceivedStakes = 0;
@@ -499,7 +523,7 @@ contract Credify {
 
     event AuditProcessed(uint256 indexed auditeeId, bool auditPassed);
 
-    function getInstitutionsForAudit() public returns (Institution[] memory) {
+    function getInstitutionsForAudit() public returns (uint256[] memory) {
         delete auditeePool;
         for (uint256 i = 1; i <= institutionCount; i++) {
             Institution memory institution = institutions[i];
@@ -509,19 +533,20 @@ contract Credify {
                 (institution.lastAuditDate + 180 days > block.timestamp)
             ) {
                 institutions[i].processingStatus = ProcessingStatus.auditee;
-                auditeePool.push(institution);
+                auditeePool.push(institution.id);
             }
             if (
                 institution.institutionStatus ==
                 InstitutionStatus.eligibleToBeAudited
             ) {
-                auditeePool.push(institution);
+                auditeePool.push(institution.id);
             }
         }
+        // [DONE] TO-DO: return the pool of institution ids instead of the whole institution
         return auditeePool;
     }
 
-    function getAuditorPool() public returns (Institution[] memory) {
+    function getAuditorPool() public returns (uint256[] memory) {
         delete auditorPool;
         for (uint256 i = 1; i <= institutionCount; i++) {
             Institution memory institution = institutions[i];
@@ -530,26 +555,47 @@ contract Credify {
                     InstitutionStatus.reputable) &&
                 (institution.lastAuditDate + 180 days <= block.timestamp)
             ) {
-                auditorPool.push(institution);
+                auditorPool.push(institution.id);
             }
         }
+        // [DONE] TO-DO: return the pool of institution ids instead of the whole institution
         return auditorPool;
     }
 
     // Function for an auditor to make an audit decision
     function makeAuditDecision(
-        uint256 auditorId,
         uint256 auditeeId,
         uint256 stakeAmount,
         bool voteReputable
     ) public {
+        // [DONE] TO-DO: auditorId is directly retrieved based on msg sender
+        uint256 auditorId = institutionIdByOwner[msg.sender];
+        require(auditorId > 0, "Caller is not registered as an institution");
+
         Institution storage auditor = institutions[auditorId];
         Institution storage auditee = institutions[auditeeId];
+
+        // NEW: Ensure auditor is indeed in the auditorPool
+        bool auditorFound = false;
+        for (uint256 i = 0; i < auditorPool.length; i++) {
+            if (auditorPool[i] == auditorId) {
+                auditorFound = true;
+                break;
+            }
+        }
+        require(auditorFound, "Caller is not an auditor");
+
+        // NEW: Ensure the auditee is indeed in the auditeePool
+        bool found = false;
+        for (uint256 i = 0; i < auditeePool.length; i++) {
+            if (auditeePool[i] == auditeeId) {
+                found = true;
+                break;
+            }
+        }
         require(
-            auditee.institutionStatus ==
-                InstitutionStatus.eligibleToBeAudited ||
-                auditee.institutionStatus == InstitutionStatus.reputable,
-            "Auditee must be eligible to be audited or reputable"
+            found,
+            "The institution that the caller intends to make an audit decision on is not an auditee"
         );
         require(
             credifyTokenBalances[auditor.owner] >= stakeAmount,

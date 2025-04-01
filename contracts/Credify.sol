@@ -120,16 +120,14 @@ contract Credify {
         emit CredifyTokensBurned(from, amount);
     }
 
-    function createCompany(
-        InstitutionStatus institutionStatus
-    ) public returns (uint256) {
+    function createCompany() public returns (uint256) {
         institutionCount++;
         uint256 institutionId = institutionCount;
 
         Institution storage newInstitution = institutions[institutionId];
         newInstitution.id = institutionId;
         newInstitution.institutionType = InstitutionType.company;
-        newInstitution.institutionStatus = institutionStatus;
+        newInstitution.institutionStatus = InstitutionStatus.unaudited;
         newInstitution.processingStatus = ProcessingStatus.endorsee;
         newInstitution.reputationPoints = 0;
         newInstitution.owner = msg.sender;
@@ -141,14 +139,12 @@ contract Credify {
         emit InstitutionCreated(
             institutionId,
             InstitutionType.company,
-            institutionStatus
+            InstitutionStatus.unaudited
         );
         return institutionId;
     }
 
-    function createUniversity(
-        InstitutionStatus institutionStatus
-    ) public returns (uint256) {
+    function createUniversity() public returns (uint256) {
         require(
             isVerifiedUniAddress(msg.sender),
             "Address not approved to create a university"
@@ -160,7 +156,7 @@ contract Credify {
         Institution storage newInstitution = institutions[institutionId];
         newInstitution.id = institutionId;
         newInstitution.institutionType = InstitutionType.university;
-        newInstitution.institutionStatus = institutionStatus;
+        newInstitution.institutionStatus = InstitutionStatus.reputable;
         newInstitution.processingStatus = ProcessingStatus.others;
         newInstitution.reputationPoints = 0;
         newInstitution.owner = msg.sender;
@@ -172,7 +168,7 @@ contract Credify {
         emit InstitutionCreated(
             institutionId,
             InstitutionType.university,
-            institutionStatus
+            InstitutionStatus.reputable
         );
         return institutionId;
     }

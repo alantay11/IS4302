@@ -18,11 +18,9 @@ contract Credify {
         verifiedUniAddresses.push(uniAddress);
     }
 
-    function isVerifiedUniAddress(address uniAddress)
-        internal
-        view
-        returns (bool)
-    {
+    function isVerifiedUniAddress(
+        address uniAddress
+    ) internal view returns (bool) {
         for (uint256 i = 0; i < verifiedUniAddresses.length; i++) {
             if (verifiedUniAddresses[i] == uniAddress) {
                 return true;
@@ -82,8 +80,8 @@ contract Credify {
         address[] credentialsIssued;
         address owner;
         ProcessingStatus processingStatus;
-        uint256[] todayEndorsementBucket;  // New field to store today’s bucket
-        uint256 lastUpdatedDate;           // New field to track last update
+        uint256[] todayEndorsementBucket; // New field to store today’s bucket
+        uint256 lastUpdatedDate; // New field to track last update
     }
 
     uint256 public institutionCount;
@@ -122,10 +120,9 @@ contract Credify {
         emit CredifyTokensBurned(from, amount);
     }
 
-    function createCompany(InstitutionStatus institutionStatus)
-        public
-        returns (uint256)
-    {
+    function createCompany(
+        InstitutionStatus institutionStatus
+    ) public returns (uint256) {
         institutionCount++;
         uint256 institutionId = institutionCount;
 
@@ -149,10 +146,9 @@ contract Credify {
         return institutionId;
     }
 
-    function createUniversity(InstitutionStatus institutionStatus)
-        public
-        returns (uint256)
-    {
+    function createUniversity(
+        InstitutionStatus institutionStatus
+    ) public returns (uint256) {
         require(
             isVerifiedUniAddress(msg.sender),
             "Address not approved to create a university"
@@ -221,11 +217,9 @@ contract Credify {
     }
 
     // Function to get the credentials of an institution
-    function getCredentials(uint256 institutionId)
-        public
-        view
-        returns (address[] memory)
-    {
+    function getCredentials(
+        uint256 institutionId
+    ) public view returns (address[] memory) {
         return institutions[institutionId].credentialsIssued;
     }
 
@@ -247,29 +241,26 @@ contract Credify {
         for (uint256 i = 1; i <= institutionCount; i++) {
             Institution memory institution = institutions[i];
             if (!isOwner(i)) {
-                delete institution.endorsedStakes;
-                delete institution.receivedStakes;
-                delete institution.auditorStakes;
-                delete institution.auditeeStakes;
+                institution.endorsedStakes = new Stake[](0);
+                institution.receivedStakes = new Stake[](0);
+                institution.auditorStakes = new AuditDecision[](0);
+                institution.auditeeStakes = new AuditDecision[](0);
             }
             allInstitutions[i - 1] = institution;
         }
         return allInstitutions;
     }
 
-
     // Function to get an institution
-    function getInstitution(uint256 institutionId)
-        public
-        view
-        returns (Institution memory)
-    {
+    function getInstitution(
+        uint256 institutionId
+    ) public view returns (Institution memory) {
         Institution memory institution = institutions[institutionId];
         if (!isOwner(institutionId)) {
-            delete institution.endorsedStakes;
-            delete institution.receivedStakes;
-            delete institution.auditorStakes;
-            delete institution.auditeeStakes;
+            institution.endorsedStakes = new Stake[](0);
+            institution.receivedStakes = new Stake[](0);
+            institution.auditorStakes = new AuditDecision[](0);
+            institution.auditeeStakes = new AuditDecision[](0);
         }
         return institution;
     } // if owner, get all, if not, only all details except stakes and auditing stakes
@@ -309,10 +300,9 @@ contract Credify {
     }
 
     // Function to get the endorsement list for a specific institution
-    function getTodayEndorsementBucket(uint256 institutionId)
-        public
-        returns (uint256[] memory)
-    {
+    function getTodayEndorsementBucket(
+        uint256 institutionId
+    ) public returns (uint256[] memory) {
         require(
             institutions[institutionId].institutionStatus ==
                 InstitutionStatus.unaudited,
@@ -328,9 +318,10 @@ contract Credify {
         return institutions[institutionId].todayEndorsementBucket;
     }
 
-    function generateEndorsementBucket(uint256 institutionId, uint256 today)
-        internal
-    {
+    function generateEndorsementBucket(
+        uint256 institutionId,
+        uint256 today
+    ) internal {
         Institution storage institution = institutions[institutionId];
         delete institution.todayEndorsementBucket;
 
@@ -339,7 +330,11 @@ contract Credify {
         uint256 eligibleCount = 0;
 
         for (uint256 j = 1; j <= institutionCount; j++) {
-            if (institutionId != j && statusIsUnaudited(institutionId) && notAlreadyEndorsed(institutionId, j)) {
+            if (
+                institutionId != j &&
+                statusIsUnaudited(institutionId) &&
+                notAlreadyEndorsed(institutionId, j)
+            ) {
                 eligibleInstitutions[eligibleCount] = j;
                 eligibleCount++;
             }
@@ -351,22 +346,28 @@ contract Credify {
             : eligibleCount;
 
         for (uint256 k = 0; k < actualBucketSize; k++) {
-            uint256 randomIndex = generateRandomNumber(institutionId * 1000 + k, eligibleCount - k);
+            uint256 randomIndex = generateRandomNumber(
+                institutionId * 1000 + k,
+                eligibleCount - k
+            );
             // Add the selected institution to the bucket
-            institution.todayEndorsementBucket.push(eligibleInstitutions[randomIndex]);
+            institution.todayEndorsementBucket.push(
+                eligibleInstitutions[randomIndex]
+            );
             // Swap the selected institution with the last one to avoid duplicates
-            eligibleInstitutions[randomIndex] = eligibleInstitutions[eligibleCount - k - 1];
+            eligibleInstitutions[randomIndex] = eligibleInstitutions[
+                eligibleCount - k - 1
+            ];
         }
 
         institution.lastUpdatedDate = today;
     }
 
     // This function generates a random number using block variables and a nonce
-    function generateRandomNumber(uint256 seed, uint256 max)
-        internal
-        view
-        returns (uint256)
-    {
+    function generateRandomNumber(
+        uint256 seed,
+        uint256 max
+    ) internal view returns (uint256) {
         // Combine multiple sources of entropy
         // Not Truly Random due to the nature of Solidity, and Chainlink VRF need to pay
         uint256 randomNumber = uint256(
@@ -383,12 +384,18 @@ contract Credify {
         return randomNumber % max;
     }
 
-    function statusIsUnaudited(uint256 institutionId) internal view returns (bool){
-        return institutions[institutionId].institutionStatus == InstitutionStatus.unaudited;
+    function statusIsUnaudited(
+        uint256 institutionId
+    ) internal view returns (bool) {
+        return
+            institutions[institutionId].institutionStatus ==
+            InstitutionStatus.unaudited;
     }
-    
 
-    function notAlreadyEndorsed(uint256 endorserId, uint256 endorseeId) internal view returns (bool) {
+    function notAlreadyEndorsed(
+        uint256 endorserId,
+        uint256 endorseeId
+    ) internal view returns (bool) {
         // Check if the endorser has already endorsed this institution
         Stake[] memory endorsedStakes = institutions[endorserId].endorsedStakes;
 
@@ -471,11 +478,9 @@ contract Credify {
     }
 
     // Helper function to calculate total received stakes for an institution
-    function calculateTotalReceivedStakes(uint256 institutionId)
-        public
-        view
-        returns (uint256)
-    {
+    function calculateTotalReceivedStakes(
+        uint256 institutionId
+    ) public view returns (uint256) {
         Stake[] memory receivedStakes = institutions[institutionId]
             .receivedStakes;
         uint256 totalReceivedStakes = 0;
@@ -495,41 +500,68 @@ contract Credify {
 
     event AuditProcessed(uint256 indexed auditeeId, bool auditPassed);
 
-    function getInstitutionsForAudit() public returns (Institution[] memory) {
-        delete auditeePool;
+    function getInstitutionsForAudit()
+        public
+        view
+        returns (Institution[] memory)
+    {
+        uint256 count = 0;
         for (uint256 i = 1; i <= institutionCount; i++) {
             Institution memory institution = institutions[i];
             if (
-                (institution.institutionStatus ==
-                    InstitutionStatus.reputable) &&
-                (institution.lastAuditDate + 180 days > block.timestamp)
-            ) {
-                institutions[i].processingStatus = ProcessingStatus.auditee;
-                auditeePool.push(institution);
-            }
-            if (
+                (institution.institutionStatus == InstitutionStatus.reputable &&
+                    institution.lastAuditDate + 180 days > block.timestamp) ||
                 institution.institutionStatus ==
                 InstitutionStatus.eligibleToBeAudited
             ) {
-                auditeePool.push(institution);
+                count++;
             }
         }
-        return auditeePool;
-    }
 
-    function getAuditorPool() public returns (Institution[] memory) {
-        delete auditorPool;
+        Institution[] memory auditeeList = new Institution[](count);
+        uint256 index = 0;
         for (uint256 i = 1; i <= institutionCount; i++) {
             Institution memory institution = institutions[i];
             if (
-                (institution.institutionStatus ==
-                    InstitutionStatus.reputable) &&
-                (institution.lastAuditDate + 180 days <= block.timestamp)
+                (institution.institutionStatus == InstitutionStatus.reputable &&
+                    institution.lastAuditDate + 180 days > block.timestamp) ||
+                institution.institutionStatus ==
+                InstitutionStatus.eligibleToBeAudited
             ) {
-                auditorPool.push(institution);
+                auditeeList[index] = institution;
+                index++;
             }
         }
-        return auditorPool;
+
+        return auditeeList;
+    }
+
+    function getAuditorPool() public view returns (Institution[] memory) {
+        uint256 count = 0;
+        for (uint256 i = 1; i <= institutionCount; i++) {
+            Institution memory institution = institutions[i];
+            if (
+                institution.institutionStatus == InstitutionStatus.reputable &&
+                institution.lastAuditDate + 180 days <= block.timestamp
+            ) {
+                count++;
+            }
+        }
+
+        Institution[] memory auditorList = new Institution[](count);
+        uint256 index = 0;
+        for (uint256 i = 1; i <= institutionCount; i++) {
+            Institution memory institution = institutions[i];
+            if (
+                institution.institutionStatus == InstitutionStatus.reputable &&
+                institution.lastAuditDate + 180 days <= block.timestamp
+            ) {
+                auditorList[index] = institution;
+                index++;
+            }
+        }
+
+        return auditorList;
     }
 
     // Function for an auditor to make an audit decision
@@ -712,5 +744,41 @@ contract Credify {
 
         // Clear auditing stakes after processing
         delete auditee.auditeeStakes;
+    }
+
+    function copyStakeArray(
+        Stake[] storage storageArray,
+        Stake[] memory memoryArray
+    ) internal {
+        while (storageArray.length > 0) {
+            storageArray.pop(); // Clear the storage array
+        }
+        for (uint256 i = 0; i < memoryArray.length; i++) {
+            storageArray.push(memoryArray[i]); // Push each element from memory to storage
+        }
+    }
+
+    function copyAuditDecisionArray(
+        AuditDecision[] storage storageArray,
+        AuditDecision[] memory memoryArray
+    ) internal {
+        while (storageArray.length > 0) {
+            storageArray.pop(); // Clear the storage array
+        }
+        for (uint256 i = 0; i < memoryArray.length; i++) {
+            storageArray.push(memoryArray[i]); // Push each element from memory to storage
+        }
+    }
+
+    function copyInstitutionArray(
+        Institution[] storage storageArray,
+        Institution[] memory memoryArray
+    ) internal {
+        while (storageArray.length > 0) {
+            storageArray.pop(); // Clear the storage array
+        }
+        for (uint256 i = 0; i < memoryArray.length; i++) {
+            storageArray.push(memoryArray[i]); // Push each element from memory to storage
+        }
     }
 }

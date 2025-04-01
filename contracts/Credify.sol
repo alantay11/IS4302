@@ -87,8 +87,8 @@ contract Credify {
     uint256 public institutionCount;
     mapping(uint256 => Institution) public institutions;
     mapping(address => uint256) public institutionIdByOwner;
-    Institution[] public auditeePool;
-    Institution[] public auditorPool;
+    uint256[] public auditeePool;
+    uint256[] public auditorPool;
 
     event InstitutionCreated(
         uint256 indexed institutionId,

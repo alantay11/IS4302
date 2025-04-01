@@ -9,25 +9,11 @@ contract Credify {
     address[] public verifiedUniAddresses;
     uint256 private constant CREDENTIAL_GENERATION_COST = 10;
     uint256 public bucketSize = 5;
-
-    function addVerifiedUniAddress(address uniAddress) public {
-        require(
-            msg.sender == credifyOwnerAddress,
-            "Only the owner can add verified university addresses"
-        );
-        verifiedUniAddresses.push(uniAddress);
-    }
-
-    function isVerifiedUniAddress(
-        address uniAddress
-    ) internal view returns (bool) {
-        for (uint256 i = 0; i < verifiedUniAddresses.length; i++) {
-            if (verifiedUniAddresses[i] == uniAddress) {
-                return true;
-            }
-        }
-        return false;
-    }
+    uint256 public institutionCount;
+    mapping(uint256 => Institution) public institutions;
+    mapping(address => uint256) public institutionIdByOwner;
+    uint256[] public auditeePool;
+    uint256[] public auditorPool;
 
     // Constructor to set the owner address
     constructor() {
@@ -84,12 +70,6 @@ contract Credify {
         uint256 lastUpdatedDate; // New field to track last update
     }
 
-    uint256 public institutionCount;
-    mapping(uint256 => Institution) public institutions;
-    mapping(address => uint256) public institutionIdByOwner;
-    uint256[] public auditeePool;
-    uint256[] public auditorPool;
-
     event InstitutionCreated(
         uint256 indexed institutionId,
         InstitutionType institutionType,
@@ -108,6 +88,21 @@ contract Credify {
 
     event CredifyTokensBurned(address indexed from, uint256 amount);
 
+    event EndorsementProcessed(uint256 indexed endorseeId, bool success);
+
+    event AuditDecisionMade(
+        uint256 indexed auditorId,
+        uint256 indexed auditeeId,
+        uint256 stakeAmount
+    );
+
+    event AuditProcessed(uint256 indexed auditeeId, bool auditPassed);
+    
+    modifier ownerOnly(uint256 institutionId) {
+        require(isOwner(institutionId), "Caller is not the owner");
+        _;
+    }
+
     function addCredits(address to, uint256 amount) private {
         credifyTokenBalances[to] += amount;
         emit CredifyTokensAdded(to, amount);
@@ -118,6 +113,25 @@ contract Credify {
         require(credifyTokenBalances[from] >= amount, "Insufficient credits");
         credifyTokenBalances[from] -= amount;
         emit CredifyTokensBurned(from, amount);
+    }
+    
+    function addVerifiedUniAddress(address uniAddress) public {
+        require(
+            msg.sender == credifyOwnerAddress,
+            "Only the owner can add verified university addresses"
+        );
+        verifiedUniAddresses.push(uniAddress);
+    }
+
+    function isVerifiedUniAddress(
+        address uniAddress
+    ) internal view returns (bool) {
+        for (uint256 i = 0; i < verifiedUniAddresses.length; i++) {
+            if (verifiedUniAddresses[i] == uniAddress) {
+                return true;
+            }
+        }
+        return false;
     }
 
     function createCompany(
@@ -226,11 +240,6 @@ contract Credify {
     // Helper function to check if the caller is the owner of the institution
     function isOwner(uint256 institutionId) internal view returns (bool) {
         return institutions[institutionId].owner == msg.sender;
-    }
-
-    modifier ownerOnly(uint256 institutionId) {
-        require(isOwner(institutionId), "Caller is not the owner");
-        _;
     }
 
     // Function to get all institutions
@@ -406,13 +415,6 @@ contract Credify {
         return true;
     }
 
-    // New events for endorsement and audit processes
-    event EndorsementSubmitted(
-        uint256 indexed endorserId,
-        uint256 indexed endorseeId,
-        uint256 stakeAmount
-    );
-    event EndorsementProcessed(uint256 indexed endorseeId, bool success);
 
     // Function to submit endorsements
     function submitEndorsements(
@@ -463,7 +465,6 @@ contract Credify {
                 Stake(stakeAmount, endorserId)
             );
 
-            emit EndorsementSubmitted(endorserId, endorseeId, stakeAmount);
             uint256 totalReceivedStakes = calculateTotalReceivedStakes(
                 endorseeId
             );
@@ -514,14 +515,6 @@ contract Credify {
 
         return totalReceivedStakes;
     }
-
-    event AuditDecisionMade(
-        uint256 indexed auditorId,
-        uint256 indexed auditeeId,
-        uint256 stakeAmount
-    );
-
-    event AuditProcessed(uint256 indexed auditeeId, bool auditPassed);
 
     function getInstitutionsForAudit() public returns (uint256[] memory) {
         delete auditeePool;

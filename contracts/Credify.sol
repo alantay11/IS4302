@@ -309,10 +309,14 @@ contract Credify {
     }
 
     // Function to get the endorsement list for a specific institution
-    function getTodayEndorsementBucket(uint256 institutionId)
+    function getTodayEndorsementBucket()
         public
         returns (uint256[] memory)
     {
+
+        uint256 institutionId = institutionIdByOwner[msg.sender];
+        require(institutionId > 0, "Caller is not registered as an institution");
+    
         require(
             institutions[institutionId].institutionStatus ==
                 InstitutionStatus.unaudited,
@@ -339,7 +343,7 @@ contract Credify {
         uint256 eligibleCount = 0;
 
         for (uint256 j = 1; j <= institutionCount; j++) {
-            if (institutionId != j && statusIsUnaudited(institutionId) && notAlreadyEndorsed(institutionId, j)) {
+            if (institutionId != j && statusIsUnaudited(j) && notAlreadyEndorsed(institutionId, j)) {
                 eligibleInstitutions[eligibleCount] = j;
                 eligibleCount++;
             }

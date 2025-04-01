@@ -646,7 +646,7 @@ contract Credify {
         uint256 auditorPoolSize = getAuditorPool().length;
 
         // Determine if the audit passed based on the majority vote
-        bool auditPassed = reputableVotes > totalVotes;
+        bool auditPassed = (reputableVotes * 2) > totalVotes;
 
         if (auditPassed) {
             // Reward all auditors with a 10% bonus on their stakes and mark the auditee as reputable

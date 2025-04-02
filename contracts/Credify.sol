@@ -177,6 +177,7 @@ contract Credify {
         newInstitution.institutionStatus = institutionStatus;
         newInstitution.processingStatus = ProcessingStatus.others;
         newInstitution.reputationPoints = 0;
+        newInstitution.lastAuditDate = block.timestamp;
         newInstitution.owner = msg.sender;
         institutionIdByOwner[msg.sender] = institutionId;
 

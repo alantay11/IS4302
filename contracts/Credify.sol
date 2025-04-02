@@ -421,6 +421,13 @@ contract Credify {
         uint256[] memory endorseeIds,
         uint256[] memory stakeAmounts
     ) public {
+        uint256 endorserId = institutionIdByOwner[msg.sender];
+        require(endorserId > 0, "Endorser not registered");
+        require(
+            institutions[endorserId].institutionStatus !=
+                InstitutionStatus.unreputable,
+            "Unreputable institutions cannot endorse"
+        );
         // [DONE] TO-DO: check whether the endorseeId is in the bucket
         uint256[] memory endorserBucket = getTodayEndorsementBucket();
         //  Ensure all endorseeIds are in the bucket
@@ -438,9 +445,6 @@ contract Credify {
             endorseeIds.length == stakeAmounts.length,
             "Mismatched input lengths"
         );
-
-        uint256 endorserId = institutionIdByOwner[msg.sender];
-        require(endorserId > 0, "Endorser not registered");
 
         for (uint256 i = 0; i < endorseeIds.length; i++) {
             uint256 endorseeId = endorseeIds[i];

@@ -428,7 +428,6 @@ contract Credify {
                 InstitutionStatus.unreputable,
             "Unreputable institutions cannot endorse"
         );
-        // [DONE] TO-DO: check whether the endorseeId is in the bucket
         uint256[] memory endorserBucket = getTodayEndorsementBucket();
         //  Ensure all endorseeIds are in the bucket
         for (uint256 i = 0; i < endorseeIds.length; i++) {
@@ -472,7 +471,7 @@ contract Credify {
             uint256 totalReceivedStakes = calculateTotalReceivedStakes(
                 endorseeId
             );
-            // [DONE] TO-DO: automatic endorsement eligibility check (previously is processEndorsement but really is just to check if met threshold only)
+
             if (
                 totalReceivedStakes +
                     credifyTokenBalances[institutions[endorseeId].owner] >=
@@ -501,7 +500,6 @@ contract Credify {
 
         // Move endorsee to auditee pool and process audit to determine success/failure of endorsement
         endorsee.institutionStatus = InstitutionStatus.eligibleToBeAudited;
-        // [DONE] TO-DO: remove the processAudit
         emit EndorsementProcessed(endorseeId, true);
     }
 
@@ -539,7 +537,6 @@ contract Credify {
                 auditeePool.push(institution.id);
             }
         }
-        // [DONE] TO-DO: return the pool of institution ids instead of the whole institution
         return auditeePool;
     }
 
@@ -555,7 +552,6 @@ contract Credify {
                 auditorPool.push(institution.id);
             }
         }
-        // [DONE] TO-DO: return the pool of institution ids instead of the whole institution
         return auditorPool;
     }
 
@@ -565,7 +561,6 @@ contract Credify {
         uint256 stakeAmount,
         bool voteReputable
     ) public {
-        // [DONE] TO-DO: auditorId is directly retrieved based on msg sender
         uint256 auditorId = institutionIdByOwner[msg.sender];
         require(auditorId > 0, "Caller is not registered as an institution");
 

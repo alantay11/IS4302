@@ -640,8 +640,6 @@ contract Credify {
             }
         }
 
-        uint256 auditorPoolSize = getAuditorPool().length;
-
         // Determine if the audit passed based on the majority vote
         bool auditPassed = (reputableVotes * 2) > totalVotes;
 

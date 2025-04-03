@@ -22,7 +22,7 @@ describe("Credify", function () {
         await credify.connect(owner).addVerifiedUniAddress(university5.address);
 
         // Create institutions
-        await credify.connect(university1).createUniversity(); // 0 represents InstitutionStatus.reputable
+        await credify.connect(university1).createUniversity();
         await credify.connect(university2).createUniversity();
         await credify.connect(university3).createUniversity();
         await credify.connect(university4).createUniversity();

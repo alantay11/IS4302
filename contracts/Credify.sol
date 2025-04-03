@@ -97,7 +97,7 @@ contract Credify {
     );
 
     event AuditProcessed(uint256 indexed auditeeId, bool auditPassed);
-    
+
     modifier ownerOnly(uint256 institutionId) {
         require(isOwner(institutionId), "Caller is not the owner");
         _;
@@ -114,7 +114,7 @@ contract Credify {
         credifyTokenBalances[from] -= amount;
         emit CredifyTokensBurned(from, amount);
     }
-    
+
     function addVerifiedUniAddress(address uniAddress) public {
         require(
             msg.sender == credifyOwnerAddress,
@@ -134,16 +134,14 @@ contract Credify {
         return false;
     }
 
-    function createCompany(
-        InstitutionStatus institutionStatus
-    ) public returns (uint256) {
+    function createCompany() public returns (uint256) {
         institutionCount++;
         uint256 institutionId = institutionCount;
 
         Institution storage newInstitution = institutions[institutionId];
         newInstitution.id = institutionId;
         newInstitution.institutionType = InstitutionType.company;
-        newInstitution.institutionStatus = institutionStatus;
+        newInstitution.institutionStatus = InstitutionStatus.unaudited;
         newInstitution.processingStatus = ProcessingStatus.endorsee;
         newInstitution.reputationPoints = 0;
         newInstitution.owner = msg.sender;
@@ -155,14 +153,12 @@ contract Credify {
         emit InstitutionCreated(
             institutionId,
             InstitutionType.company,
-            institutionStatus
+            InstitutionStatus.unaudited
         );
         return institutionId;
     }
 
-    function createUniversity(
-        InstitutionStatus institutionStatus
-    ) public returns (uint256) {
+    function createUniversity() public returns (uint256) {
         require(
             isVerifiedUniAddress(msg.sender),
             "Address not approved to create a university"
@@ -174,7 +170,7 @@ contract Credify {
         Institution storage newInstitution = institutions[institutionId];
         newInstitution.id = institutionId;
         newInstitution.institutionType = InstitutionType.university;
-        newInstitution.institutionStatus = institutionStatus;
+        newInstitution.institutionStatus = InstitutionStatus.reputable;
         newInstitution.processingStatus = ProcessingStatus.others;
         newInstitution.reputationPoints = 0;
         newInstitution.lastAuditDate = block.timestamp;
@@ -187,7 +183,7 @@ contract Credify {
         emit InstitutionCreated(
             institutionId,
             InstitutionType.university,
-            institutionStatus
+            InstitutionStatus.reputable
         );
         return institutionId;
     }
@@ -343,7 +339,11 @@ contract Credify {
         uint256 eligibleCount = 0;
 
         for (uint256 j = 1; j <= institutionCount; j++) {
-            if (institutionId != j && statusIsUnaudited(j) && notAlreadyEndorsed(institutionId, j)) {
+            if (
+                institutionId != j &&
+                statusIsUnaudited(j) &&
+                notAlreadyEndorsed(institutionId, j)
+            ) {
                 eligibleInstitutions[eligibleCount] = j;
                 eligibleCount++;
             }
@@ -415,7 +415,6 @@ contract Credify {
         }
         return true;
     }
-
 
     // Function to submit endorsements
     function submitEndorsements(

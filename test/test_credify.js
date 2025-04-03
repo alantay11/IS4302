@@ -22,13 +22,13 @@ describe("Credify", function () {
         await credify.connect(owner).addVerifiedUniAddress(university5.address);
 
         // Create institutions
-        await credify.connect(university1).createUniversity(0); // 0 represents InstitutionStatus.reputable
-        await credify.connect(university2).createUniversity(0);
-        await credify.connect(university3).createUniversity(0);
-        await credify.connect(university4).createUniversity(0);
-        await credify.connect(university5).createUniversity(0);
-        await credify.connect(company1).createCompany(0);
-        await credify.connect(company2).createCompany(0);
+        await credify.connect(university1).createUniversity(); // 0 represents InstitutionStatus.reputable
+        await credify.connect(university2).createUniversity();
+        await credify.connect(university3).createUniversity();
+        await credify.connect(university4).createUniversity();
+        await credify.connect(university5).createUniversity();
+        await credify.connect(company1).createCompany();
+        await credify.connect(company2).createCompany();
     });
 
     it("Should update the status of an endorsee when it hits the endorsement threshold", async function () {

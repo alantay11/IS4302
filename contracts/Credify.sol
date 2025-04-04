@@ -185,6 +185,7 @@ contract Credify {
             InstitutionType.university,
             InstitutionStatus.reputable
         );
+        auditorPool.push(institutionId);
         return institutionId;
     }
 
@@ -543,7 +544,7 @@ contract Credify {
         return auditeePool;
     }
 
-    function getAuditorPool() public returns (uint256[] memory) {
+    function getAuditors() public {
         delete auditorPool;
         for (uint256 i = 1; i <= institutionCount; i++) {
             Institution memory institution = institutions[i];
@@ -555,6 +556,9 @@ contract Credify {
                 auditorPool.push(institution.id);
             }
         }
+    }
+
+    function getAuditorPool() public view returns (uint256[] memory) {
         return auditorPool;
     }
 
@@ -570,7 +574,7 @@ contract Credify {
         Institution storage auditor = institutions[auditorId];
         Institution storage auditee = institutions[auditeeId];
 
-        // NEW: Ensure auditor is indeed in the auditorPool
+
         bool auditorFound = false;
         for (uint256 i = 0; i < auditorPool.length; i++) {
             if (auditorPool[i] == auditorId) {
@@ -580,7 +584,7 @@ contract Credify {
         }
         require(auditorFound, "Caller is not an auditor");
 
-        // NEW: Ensure the auditee is indeed in the auditeePool
+
         bool found = false;
         for (uint256 i = 0; i < auditeePool.length; i++) {
             if (auditeePool[i] == auditeeId) {

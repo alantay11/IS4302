@@ -41,21 +41,29 @@ describe("Credify", function () {
         expect(company3Status).to.equal(2); // 2 represents InstitutionStatus.eligibleToBeAudited
     });
 
-    // it("Should place the endorsee into the auditee pool", async function () {
-    //     await credify.connect(company1).submitEndorsements([6], [25]);
-    //     await credify.connect(company2).submitEndorsements([6], [25]);
+    it("Should place the endorsee into the auditee pool", async function () {
+        await credify.connect(company1).submitEndorsements([6], [25]);
+        await credify.connect(company2).submitEndorsements([6], [25]);
 
-    //     await credify.getInstitutionsForAudit();
-    //     const auditeePool = await credify.auditeePool;
-    //     expect(auditeePool.length).to.equal(1); // 1 institution in the pool
-    //     // const auditeePool = await credify.getInstitutionsForAudit();
-    //     // expect(auditeePool[0]).to.equal(6); // Company 1's ID
+        await credify.getInstitutionsForAudit();
+        const auditeePool = await credify.getAuditeePool();
+        expect(auditeePool.length).to.equal(1); // 1 institution in the pool
+        expect(auditeePool[0]).to.equal(6); // Company 1's ID
+    });
+
+
+    // it("Should place the auditor into the auditor pool", async function () {
+    //     const auditorPool 
+    //     expect(auditorPool.length).to.equal(1); // 1 institution in the pool
+    //     expect(auditeePool[0]).to.equal(6); // Company 1's ID
     // });
 
 
     it("Should get audited and pass", async function () {
         await credify.connect(company1).submitEndorsements([6], [25]);
         await credify.connect(company2).submitEndorsements([6], [25]);
+
+        await credify.getInstitutionsForAudit();
 
         await credify.connect(university1).makeAuditDecision(6, 25, true);
         await credify.connect(university2).makeAuditDecision(6, 25, false);
@@ -79,6 +87,8 @@ describe("Credify", function () {
     it("Should get audited and fail", async function () {
         await credify.connect(company1).submitEndorsements([7], [25]);
         await credify.connect(company2).submitEndorsements([7], [25]);
+
+        await credify.getInstitutionsForAudit();
 
         await credify.connect(university1).makeAuditDecision(7, 25, false);
         await credify.connect(university2).makeAuditDecision(7, 25, true);
@@ -111,6 +121,9 @@ describe("Credify", function () {
     // });
 
     it("Should not process the audit due to insufficient stake", async function () {
+        await credify.connect(company1).submitEndorsements([6], [25]);
+        await credify.connect(company2).submitEndorsements([6], [25]);
+        await credify.getInstitutionsForAudit();
         // Attempt to make audit decisions with insufficient stakes
         await expect(
             credify.connect(university1).makeAuditDecision(6, 2, true)

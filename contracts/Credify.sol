@@ -551,7 +551,7 @@ contract Credify {
             if (
                 (institution.institutionStatus ==
                     InstitutionStatus.reputable) &&
-                (institution.lastAuditDate + 180 days <= block.timestamp)
+                (institution.lastAuditDate + 180 days >= block.timestamp)
             ) {
                 auditorPool.push(institution.id);
             }

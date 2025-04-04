@@ -19,8 +19,6 @@ describe("Credify", function () {
         await credify.connect(owner).addVerifiedUniAddress(university2.address);
         await credify.connect(owner).addVerifiedUniAddress(university3.address);
 
-        // TO-DO: create total 5 companies so that only companies endorse each other
-        // TO-DO: universities cannot endorse companies
 
         // Create institutions
         await credify.connect(university1).createUniversity();
@@ -38,7 +36,7 @@ describe("Credify", function () {
         await credify.connect(company2).submitEndorsements([6], [25]);
 
         const company3Status = (await credify.getInstitution(6)).institutionStatus;
-        expect(company3Status).to.equal(2); // 2 represents InstitutionStatus.eligibleToBeAudited
+        expect(company3Status).to.equal(2);
     });
 
     it("Should place the endorsee into the auditee pool", async function () {
@@ -47,16 +45,18 @@ describe("Credify", function () {
 
         await credify.getInstitutionsForAudit();
         const auditeePool = await credify.getAuditeePool();
-        expect(auditeePool.length).to.equal(1); // 1 institution in the pool
-        expect(auditeePool[0]).to.equal(6); // Company 1's ID
+        expect(auditeePool.length).to.equal(1);
+        // company 3 should be in the auditee pool
+        expect(auditeePool[0]).to.equal(6);
     });
 
 
-    // it("Should place the auditor into the auditor pool", async function () {
-    //     const auditorPool 
-    //     expect(auditorPool.length).to.equal(1); // 1 institution in the pool
-    //     expect(auditeePool[0]).to.equal(6); // Company 1's ID
-    // });
+    it("Should place the auditor into the auditor pool", async function () {
+        await credify.getAuditors();
+        const auditorPool = await credify.getAuditorPool();
+        // the 3 universities should be in the auditor pool
+        expect(auditorPool.length).to.equal(3);
+    });
 
 
     it("Should get audited and pass", async function () {
@@ -70,7 +70,7 @@ describe("Credify", function () {
         await credify.connect(university3).makeAuditDecision(6, 25, true);
 
         const company3Status = (await credify.getInstitution(6)).institutionStatus;
-        expect(company3Status).to.equal(0); // 0 represents InstitutionStatus.reputable
+        expect(company3Status).to.equal(0);
 
         // Check token balances
         // auditor's balances
@@ -95,7 +95,7 @@ describe("Credify", function () {
         await credify.connect(university3).makeAuditDecision(7, 25, false);
 
         const company4Status = (await credify.getInstitution(7)).institutionStatus;
-        expect(company4Status).to.equal(1); // 1 represents InstitutionStatus.unreputable
+        expect(company4Status).to.equal(1);
 
         // Check token balances
         // auditor's balances
@@ -109,22 +109,23 @@ describe("Credify", function () {
         expect(await credify.credifyTokenBalances(company3.address)).to.equal(50);; // 50
     });
 
-    // it("Should place Company 1 into the auditee pool", async function () {
-    //     // Now company1 is reputable, fast forward 6 months
-    //     await ethers.provider.send("evm_increaseTime", [180 * 24 * 60 * 60]);
-    //     await ethers.provider.send("evm_mine");
-    //     // Get the auditee pool
-    //     const auditeePool = await credify.getInstitutionsForAudit();
+    it("Should place all universities into the auditee pool after 6 months", async function () {
+        // Fast forward 6 months
+        await ethers.provider.send("evm_increaseTime", [180 * 24 * 60 * 60]);
+        await ethers.provider.send("evm_mine");
+        // Get the auditee pool
+        await credify.getInstitutionsForAudit();
 
-    //     // Check that company1's ID is in the auditee pool
-    //     expect(auditeePool).to.include(6); // Company 1's ID
-    // });
+        const auditeePool = await credify.getAuditeePool();
+        // all 3 universities should be in the auditee pool
+        expect(auditeePool.length).to.equal(3);
+    });
 
     it("Should not process the audit due to insufficient stake", async function () {
         await credify.connect(company1).submitEndorsements([6], [25]);
         await credify.connect(company2).submitEndorsements([6], [25]);
         await credify.getInstitutionsForAudit();
-        // Attempt to make audit decisions with insufficient stakes
+        // Attempt to make audit decision with insufficient stakes
         await expect(
             credify.connect(university1).makeAuditDecision(6, 2, true)
         ).to.be.revertedWith("Stake amount must be at least 10% of the auditor's balance");

@@ -315,7 +315,7 @@ contract Credify {
         require(
             institutions[institutionId].institutionStatus ==
                 InstitutionStatus.unaudited,
-            "You cannot endorse others."
+            "Not eligible for endorsement."
         );
         uint256 today = block.timestamp / 1 days;
 
@@ -518,14 +518,14 @@ contract Credify {
         return totalReceivedStakes;
     }
 
-    function getInstitutionsForAudit() public returns (uint256[] memory) {
+    function getInstitutionsForAudit() public {
         delete auditeePool;
         for (uint256 i = 1; i <= institutionCount; i++) {
             Institution memory institution = institutions[i];
             if (
                 (institution.institutionStatus ==
                     InstitutionStatus.reputable) &&
-                (institution.lastAuditDate + 180 days > block.timestamp)
+                (institution.lastAuditDate + 180 days < block.timestamp)
             ) {
                 institutions[i].processingStatus = ProcessingStatus.auditee;
                 auditeePool.push(institution.id);
@@ -537,6 +537,9 @@ contract Credify {
                 auditeePool.push(institution.id);
             }
         }
+    }
+    
+    function getAuditeePool() public view returns (uint256[] memory) {
         return auditeePool;
     }
 

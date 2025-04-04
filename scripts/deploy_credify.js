@@ -1,11 +1,11 @@
 const hre = require("hardhat");
 
 async function main() {
-  // Deploy the "Credential" contract
-  const Credential = await hre.ethers.getContractFactory("Credential");
-  const credential = await Credential.deploy();
-  await credential.waitForDeployment();
-  console.log("Credential deployed to:", await credential.getAddress());
+  // // Deploy the "Credential" contract
+  // const Credential = await hre.ethers.getContractFactory("Credential");
+  // const credential = await Credential.deploy();
+  // await credential.waitForDeployment();
+  // console.log("Credential deployed to:", await credential.getAddress());
 
   // Deploy the "Credify" contract
   const Credify = await hre.ethers.getContractFactory("Credify");

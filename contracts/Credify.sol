@@ -315,7 +315,7 @@ contract Credify {
         require(
             institutions[institutionId].institutionStatus ==
                 InstitutionStatus.unaudited,
-            "Not eligible for endorsement."
+            "You cannot endorse others."
         );
         uint256 today = block.timestamp / 1 days;
 

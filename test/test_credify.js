@@ -18,6 +18,9 @@ describe("Credify", function () {
         await credify.connect(owner).addVerifiedUniAddress(university1.address);
         await credify.connect(owner).addVerifiedUniAddress(university2.address);
         await credify.connect(owner).addVerifiedUniAddress(university3.address);
+
+        // TO-DO: create total 5 companies so that only companies endorse each other
+        // TO-DO: universities cannot endorse companies
         await credify.connect(owner).addVerifiedUniAddress(university4.address);
         await credify.connect(owner).addVerifiedUniAddress(university5.address);
 

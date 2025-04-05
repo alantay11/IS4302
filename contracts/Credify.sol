@@ -455,6 +455,10 @@ contract Credify {
                 "Insufficient CredifyToken balance"
             );
             require(
+                stakeAmount > 0,
+                "Stake amount must be greater than 0"
+            );
+            require(
                 institutions[endorseeId].institutionStatus ==
                     InstitutionStatus.unaudited,
                 "Endorsee must be unaudited"

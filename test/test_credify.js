@@ -4,10 +4,10 @@ const { ethers } = require("hardhat");
 describe("Credify", function () {
     let Credify;
     let credify;
-    let owner, university1, university2, university3, company1, company2, company3, company4, company5, others;
+    let owner, university1, university2, university3, company1, company2, company3, company4, company5, company6, others;
 
     beforeEach(async function () {
-        [owner, university1, university2, university3, company1, company2, company3, company4, company5, ...others] = await ethers.getSigners();
+        [owner, university1, university2, university3, company1, company2, company3, company4, company5, company6, ...others] = await ethers.getSigners();
 
         // Deploy Credify
         Credify = await ethers.getContractFactory("Credify");
@@ -155,9 +155,26 @@ describe("Credify", function () {
     });
 
     it("Should not allow endorsing institutions not in today's bucket", async function () {
+        // Try to get today's endorsement bucket
+        const bucket = await credify.connect(company1).getTodayEndorsementBucket();
+
+        // Find the institution ID not in company 1's bucket
+        let institutionIdNotInBucket = 0;
+        for (let i = 0; i < bucket.length; i++) {
+            for (let j = 0; j < 8; j++) {
+                if (bucket[i] == j) {
+                    break;
+                }
+            }
+            if (institutionIdNotInBucket == 0) {
+                institutionIdNotInBucket = bucket[i];
+                break;
+            }
+        }
+
         // Try to endorse an institution not in the bucket
         await expect(
-            credify.connect(company1).submitEndorsements([9], [25])
+            credify.connect(company1).submitEndorsements([institutionIdNotInBucket], [25])
         ).to.be.revertedWith("Endorsee not in today's endorsement bucket");
     });
 

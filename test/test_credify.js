@@ -29,6 +29,7 @@ describe("Credify", function () {
         await credify.connect(company3).createCompany();
         await credify.connect(company4).createCompany();
         await credify.connect(company5).createCompany();
+        await credify.connect(company6).createCompany();
     });
 
     // Institution Creation and Verification

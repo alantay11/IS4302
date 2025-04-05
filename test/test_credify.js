@@ -116,13 +116,13 @@ describe("Credify", function () {
         // Check token balances
         // auditor's balances
         expect(await credify.credifyTokenBalances(university1.address)).to.equal(52); // 25 + (25 * 1.1)
-        expect(await credify.credifyTokenBalances(university3.address)).to.equal(52);; // 25 + (25 * 1.1)
-        expect(await credify.credifyTokenBalances(university2.address)).to.equal(42);; // 25 + (25 * 0.7)
+        expect(await credify.credifyTokenBalances(university3.address)).to.equal(52); // 25 + (25 * 1.1)
+        expect(await credify.credifyTokenBalances(university2.address)).to.equal(42); // 25 + (25 * 0.7)
         // endorser's balances
-        expect(await credify.credifyTokenBalances(company1.address)).to.equal(42);; // 25 + (25 * 0.7)
-        expect(await credify.credifyTokenBalances(company2.address)).to.equal(42);; // 25 + (25 * 0.7)
+        expect(await credify.credifyTokenBalances(company1.address)).to.equal(42); // 25 + (25 * 0.7)
+        expect(await credify.credifyTokenBalances(company2.address)).to.equal(42); // 25 + (25 * 0.7)
         // endorsee's balances
-        expect(await credify.credifyTokenBalances(company3.address)).to.equal(50);; // 50
+        expect(await credify.credifyTokenBalances(company3.address)).to.equal(50); // 50
     });
 
     it("Should place all universities into the auditee pool after 6 months", async function () {
@@ -237,5 +237,45 @@ describe("Credify", function () {
             credify.connect(university1).makeAuditDecision(6, 2, true)
         ).to.be.revertedWith("Stake amount must be at least 10% of the auditor's balance");
 
+    });
+    
+    //Test for Credential
+    it("Should not allow Credential to be created due to reputation status", async function () {
+        await expect(
+            credify.connect(company3).addCredential(6,
+                "John Doe",
+                "Internship Completion Certificate",
+                "Software Engineer Internship",
+                "www.loremipsum.com",
+                "123456abcdef")
+        ).to.be.revertedWith("Institution must be reputable to issue credentials");
+    });
+
+    
+    it("Should create Credential", async function() {
+        await credify.connect(company1).submitEndorsements([6], [25]);
+        await credify.connect(company2).submitEndorsements([6], [25]);
+        await credify.getInstitutionsForAudit();
+        await credify.connect(university1).makeAuditDecision(6, 25, true);
+        await credify.connect(university2).makeAuditDecision(6, 25, false);
+        await credify.connect(university3).makeAuditDecision(6, 25, true);
+        const initialBalance = await credify.credifyTokenBalances(company3.address);
+        await credify.connect(company3).addCredential(6,
+                "John Doe",
+                "Internship Completion Certificate",
+                "Software Engineer Internship",
+                "www.loremipsum.com",
+                "123456abcdef");
+        const finalBalance = await credify.credifyTokenBalances(company3.address);
+        await expect(finalBalance).to.equal(initialBalance - await credify.CREDENTIAL_GENERATION_COST());
+        
+        const credentialAddresses = await credify.getCredentials(6);
+        await expect(credentialAddresses.length).to.equal(1);
+        
+        const credentialAddress = credentialAddresses[0];
+
+        const Credential = await ethers.getContractFactory("Credential");
+        const credentialInstance = await Credential.attach(credentialAddress);
+        await expect(await credentialInstance.getCredentialOwner()).to.equal(company3.address);
     });
 });

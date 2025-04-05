@@ -42,4 +42,10 @@ contract Credential {
     ) {
         return (owner, credifyInstitutionId, recipient, credentialName, description, url, ipfsHash, issueDate);
     }
+    
+    function getCredentialOwner() public view returns (
+        address
+    ) {
+        return owner;
+    }
 }

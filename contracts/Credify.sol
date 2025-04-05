@@ -7,7 +7,7 @@ contract Credify {
     mapping(address => uint256) public credifyTokenBalances;
     address public credifyOwnerAddress;
     address[] public verifiedUniAddresses;
-    uint256 private constant CREDENTIAL_GENERATION_COST = 10;
+    uint256 public constant CREDENTIAL_GENERATION_COST = 10;
     uint256 public bucketSize = 5;
     uint256 public institutionCount;
     mapping(uint256 => Institution) public institutions;

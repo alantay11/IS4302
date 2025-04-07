@@ -137,6 +137,85 @@ describe("Credify", function () {
         expect(auditeePool.length).to.equal(3);
     });
 
+    it("Should regenerate endorsement bucket on a new day", async function () {
+        await credify.connect(company1).getTodayEndorsementBucket();
+        const bucket1 = await credify.connect(company1).viewTodayEndorsementBucket();
+    
+        // Simulate the next day
+        await ethers.provider.send("evm_increaseTime", [24 * 60 * 60]); // 1 day
+        await ethers.provider.send("evm_mine");
+    
+        await credify.connect(company1).getTodayEndorsementBucket();
+        const bucket2 = await credify.connect(company1).viewTodayEndorsementBucket();
+        // Ensure the buckets are different
+        expect(bucket1).to.not.deep.equal(bucket2);
+    });
+    
+    
+    it("Should return the same endorsement bucket on repeated calls on the same day", async function () {
+        await credify.connect(company1).getTodayEndorsementBucket();
+        await credify.connect(company1).getTodayEndorsementBucket();
+    
+        const firstBucket = await credify.connect(company1).viewTodayEndorsementBucket();
+        const secondBucket = await credify.connect(company1).viewTodayEndorsementBucket();
+
+        expect(firstBucket.length).to.equal(secondBucket.length);
+        for (let i = 0; i < firstBucket.length; i++) {
+            expect(firstBucket[i]).to.equal(secondBucket[i]);
+        }
+    });
+
+    it("Should not include already endorsed institutions in the endorsement bucket", async function () {
+        // Get today's endorsement bucket
+        await credify.connect(company1).getTodayEndorsementBucket();
+        const bucketBefore = await credify.connect(company1).viewTodayEndorsementBucket();
+
+        // Choose one institution ID from the bucket to endorse
+        const targetId = bucketBefore[0];
+        await credify.connect(company1).submitEndorsements([targetId], [25]);
+    
+        // Simulate next day
+        await ethers.provider.send("evm_increaseTime", [24 * 60 * 60]); // 1 day
+        await ethers.provider.send("evm_mine");
+        
+        // Get the bucket again on the next day
+        await credify.connect(company1).getTodayEndorsementBucket();
+        const bucketAfter = credify.connect(company1).viewTodayEndorsementBucket();
+        // The endorsed institution should not be in the bucket anymore
+        for (let i = 0; i < bucketAfter.length; i++) {
+            expect(bucketAfter[i]).to.not.equal(targetId);
+        }
+    });
+
+    it("Should only include institutions with unaudited status", async function () {
+
+        // Simulate making company4 reputable (status = 0)
+        await credify.connect(company1).submitEndorsements([7], [25]);
+        await credify.connect(company2).submitEndorsements([7], [25]);
+        await credify.getInstitutionsForAudit();
+    
+        // Make audit decision for institution 7
+        await credify.connect(university1).makeAuditDecision(7, 25, true);
+        await credify.connect(university2).makeAuditDecision(7, 25, true);
+        await credify.connect(university3).makeAuditDecision(7, 25, true);
+
+        // Simulate the next day
+        await ethers.provider.send("evm_increaseTime", [24 * 60 * 60]); // 1 day
+        await ethers.provider.send("evm_mine");
+        const company4Id = await credify.institutionIdByOwner(company4.address);
+        
+        await credify.connect(company1).getTodayEndorsementBucket();
+        // Get the endorsement bucket for company1
+        const bucket = await credify.connect(company1).viewTodayEndorsementBucket();
+    
+        // Verify that company 7 (which is now audited) is not in the bucket
+        for (let i = 0; i < bucket.length; i++) {
+            expect(bucket[i]).to.not.equal(company4Id, "Company 7 should not be in the bucket");
+        }
+    });
+    
+    
+
     // Endorsement Restrictions
     it("Should prevent self-endorsement attempts", async function () {
         const institutionId = await credify.institutionIdByOwner(company1.address);

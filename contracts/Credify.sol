@@ -328,6 +328,11 @@ contract Credify {
         return institutions[institutionId].todayEndorsementBucket;
     }
 
+    function viewTodayEndorsementBucket() public view returns (uint256[] memory) {
+        uint256 institutionId = institutionIdByOwner[msg.sender];
+        return institutions[institutionId].todayEndorsementBucket;
+    }
+
     function generateEndorsementBucket(
         uint256 institutionId,
         uint256 today

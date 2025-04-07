@@ -8,6 +8,7 @@ contract Credify {
     address public credifyOwnerAddress;
     address[] public verifiedUniAddresses;
     uint256 public constant CREDENTIAL_GENERATION_COST = 10;
+    uint256 public constant CREDENTIAL_GENERATION_REPUTATION = 5;
     uint256 public bucketSize = 5;
     uint256 public institutionCount;
     mapping(uint256 => Institution) public institutions;
@@ -135,6 +136,7 @@ contract Credify {
     }
 
     function createCompany() public returns (uint256) {
+        require(institutionIdByOwner[msg.sender] == 0, "Institution already exists");
         institutionCount++;
         uint256 institutionId = institutionCount;
 
@@ -219,6 +221,9 @@ contract Credify {
         institutions[institutionId].credentialsIssued.push(
             newCredentialAddress
         );
+
+        institutions[institutionId].reputationPoints += CREDENTIAL_GENERATION_REPUTATION; //Reputation Point increased
+
         emit CredentialAdded(
             institutionId,
             recipient,
@@ -493,7 +498,7 @@ contract Credify {
     }
 
     // Function to process endorsements
-    function processEndorsementEligibility(uint256 endorseeId) public {
+    function processEndorsementEligibility(uint256 endorseeId) internal {
         Institution storage endorsee = institutions[endorseeId];
         // Endorsements are only needed for unaudited institutions
         require(
@@ -637,7 +642,7 @@ contract Credify {
     }
 
     // Function to process audits for an auditee
-    function processAudit(uint256 auditeeId) public {
+    function processAudit(uint256 auditeeId) internal {
         Institution storage auditee = institutions[auditeeId];
 
         uint256 totalVotes = 0;

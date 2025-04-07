@@ -31,12 +31,19 @@ describe("Credify", function () {
         await credify.connect(company5).createCompany();
         await credify.connect(company6).createCompany();
     });
-
+    
     // Institution Creation and Verification
     it("Should not allow non-verified addresses to create a university", async function () {
         await expect(
             credify.connect(company1).createUniversity()
         ).to.be.revertedWith("Address not approved to create a university");
+    });
+
+    // Institution Creation Fail due to prexisting institution
+    it("Should not allow duplicate address when creating institution", async function () {
+        await expect(
+            credify.connect(company1).createCompany()
+        ).to.be.revertedWith("Institution already exists");
     });
 
     it("Should not allow non-owner to add verified university addresses", async function () {
@@ -339,6 +346,8 @@ describe("Credify", function () {
         await credify.connect(university2).makeAuditDecision(6, 25, false);
         await credify.connect(university3).makeAuditDecision(6, 25, true);
         const initialBalance = await credify.credifyTokenBalances(company3.address);
+        let initialReputationPoints = await credify.connect(company3).getInstitution(6);
+        initialReputationPoints = initialReputationPoints.reputationPoints
         await credify.connect(company3).addCredential(6,
                 "John Doe",
                 "Internship Completion Certificate",
@@ -347,6 +356,9 @@ describe("Credify", function () {
                 "123456abcdef");
         const finalBalance = await credify.credifyTokenBalances(company3.address);
         await expect(finalBalance).to.equal(initialBalance - await credify.CREDENTIAL_GENERATION_COST());
+        let finalReputationPoints = await credify.connect(company3).getInstitution(6);
+        finalReputationPoints = finalReputationPoints.reputationPoints;
+        await expect(finalReputationPoints).to.equal(initialReputationPoints + await credify.CREDENTIAL_GENERATION_REPUTATION());
         
         const credentialAddresses = await credify.getCredentials(6);
         await expect(credentialAddresses.length).to.equal(1);

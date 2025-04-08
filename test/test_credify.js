@@ -228,7 +228,9 @@ describe("Credify", function () {
         const institutionId = await credify.institutionIdByOwner(company1.address);
 
         // Try to get today's endorsement bucket
-        const bucket = await credify.connect(company1).getTodayEndorsementBucket();
+        // NOTE: this will return empty array actually, not bucket just response
+        await credify.connect(company1).getTodayEndorsementBucket();
+        const bucket = await credify.connect(company1).viewTodayEndorsementBucket();
 
         // Verify that the institution's own ID is not in its endorsement bucket
         for (let i = 0; i < bucket.length; i++) {
@@ -242,23 +244,22 @@ describe("Credify", function () {
     });
 
     it("Should not allow endorsing institutions not in today's bucket", async function () {
-        // Try to get today's endorsement bucket
-        const bucket = await credify.connect(company1).getTodayEndorsementBucket();
-
-        // Find the institution ID not in company 1's bucket
+        // Get today's endorsement bucket
+        await credify.connect(company1).getTodayEndorsementBucket();
+        const bucket = await credify.connect(company1).viewTodayEndorsementBucket();
+    
+        // Find an institution ID that is not in the bucket
         let institutionIdNotInBucket = 0;
-        for (let i = 0; i < bucket.length; i++) {
-            for (let j = 0; j < 8; j++) {
-                if (bucket[i] == j) {
-                    break;
-                }
-            }
-            if (institutionIdNotInBucket == 0) {
-                institutionIdNotInBucket = bucket[i];
+        for (let j = 1; j <= 8; j++) { // Assuming institution IDs range from 1 to 8
+            if (!bucket.includes(j)) { // Check if the ID is not in the bucket
+                institutionIdNotInBucket = j;
                 break;
             }
         }
-
+    
+        // Ensure we found an institution ID not in the bucket
+        expect(institutionIdNotInBucket).to.not.equal(0, "No institution ID found outside the bucket");
+    
         // Try to endorse an institution not in the bucket
         await expect(
             credify.connect(company1).submitEndorsements([institutionIdNotInBucket], [25])

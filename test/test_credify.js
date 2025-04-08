@@ -278,7 +278,7 @@ describe("Credify", function () {
         // unreputable institution try to endorse
         await expect(
             credify.connect(company1).submitEndorsements([5], [25])
-        ).to.be.revertedWith("Unreputable institutions cannot endorse");
+        ).to.be.revertedWith("Not eligible for endorsement.");
     });
 
     it("Should not allow endorsing without staking any tokens", async function () {

@@ -435,9 +435,9 @@ contract Credify {
         uint256 endorserId = institutionIdByOwner[msg.sender];
         require(endorserId > 0, "Endorser not registered");
         require(
-            institutions[endorserId].institutionStatus !=
-                InstitutionStatus.unreputable,
-            "Unreputable institutions cannot endorse"
+            institutions[endorserId].institutionStatus ==
+                InstitutionStatus.unaudited,
+            "Not eligible for endorsement."
         );
         uint256[] memory endorserBucket = getTodayEndorsementBucket();
         //  Ensure all endorseeIds are in the bucket

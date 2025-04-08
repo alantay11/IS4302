@@ -250,8 +250,8 @@ describe("Credify", function () {
     
         // Find an institution ID that is not in the bucket
         let institutionIdNotInBucket = 0;
-        for (let j = 1; j <= 8; j++) { // Assuming institution IDs range from 1 to 8
-            if (!bucket.includes(j)) { // Check if the ID is not in the bucket
+        for (let j = 1; j <= 9; j++) {
+            if (!bucket.includes(j)) {
                 institutionIdNotInBucket = j;
                 break;
             }
